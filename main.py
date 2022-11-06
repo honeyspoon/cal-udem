@@ -3,13 +3,12 @@ import datetime
 import bs4
 import ics
 import requests
-import pytz
 
 
 def parse_dates(date_str):
     _, start_date, _, end_date = date_str.split()
-    start_date = datetime.datetime.strptime(start_date, "%d/%m/%Y").astimezone(pytz.UTC)
-    end_date = datetime.datetime.strptime(end_date, "%d/%m/%Y").astimezone(pytz.UTC)
+    start_date = datetime.datetime.strptime(start_date, "%d/%m/%Y")
+    end_date = datetime.datetime.strptime(end_date, "%d/%m/%Y")
 
     return start_date, end_date
 
