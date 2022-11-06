@@ -88,6 +88,7 @@ def main():
         for section, hours in semester.items():
             for entry in hours:
                 start_date, end_date, start_time, end_time = entry
+
                 e = ics.Event()
                 e.summary = section
                 e.description = "A meaningful description"
@@ -97,6 +98,11 @@ def main():
 
                 e.begin = real_start_datetime
                 e.end = real_end_datetime
+                count = (end_date - start_date).days // 7
+                line = [f"RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT={count}"]
+                e.extra = ics.Container(
+                    name="VEVENT", data=[ics.contentline.lines_to_container(line)]
+                )
 
                 c.events.append(e)
 
