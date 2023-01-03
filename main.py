@@ -2,7 +2,10 @@ import datetime
 
 import bs4
 import ics
+import pickle
+import os
 import requests
+import functools
 
 
 def parse_dates(date_str):
@@ -33,80 +36,127 @@ def parse_weekday(weekday):
     return d[weekday]
 
 
+def parse_class_name(class_name):
+    name, section = class_name.split("-")
+    name = name.lower()
+    name = name.replace(" ", "-")
+
+    return name, section
+
+
+def class_url(class_name):
+    return f"https://admission.umontreal.ca/cours-et-horaires/cours/{class_name}/"
+
+
+@functools.lru_cache()
 def get_schedule(class_name):
     schedule = {}
 
-    # url = f"https://admission.umontreal.ca/cours-et-horaires/cours/{class_name}/"
-    # result = requests.get(url)
-    # if result:
+    file_name = f"{class_name}.pickle"
+    if os.path.exists(file_name):
+        f = open(file_name, "rb")
+        schedule = pickle.load(f)
+    else:
+        f = open(file_name, "wb")
 
-    if True:
-        with open("a.html") as f:
-            data = f.read()
-            soup = bs4.BeautifulSoup(data, "html.parser")
+        url = class_url(class_name)
+        result = requests.get(url)
+        if result:
+            if True:
+                data = result.text
+                soup = bs4.BeautifulSoup(data, "html.parser")
 
-            long_name = soup.find("h1", {"class": "featuredTitle"}).get_text()
-            schedule_section = soup.find("section", {"class": "horaire-folder"})
-            semesters = schedule_section.find_all("div", {"class": "fold"})
+                long_name = soup.find("h1", {"class": "featuredTitle"}).get_text()
+                schedule_section = soup.find("section", {"class": "horaire-folder"})
+                semesters = schedule_section.find_all("div", {"class": "fold"})
 
-            for semester in semesters:
-                semester_name = (
-                    semester.find("span", {"class": "foldButton"}).get_text().strip()
-                )
-                sections = [
-                    section.get_text().strip() for section in semester.find_all("h4")
-                ]
-                tables = semester.find_all("table")
-                schedule[semester_name] = {}
-                for section, table in zip(sections, tables):
-                    entries = [
-                        [cell.get_text().strip() for cell in row.find_all("td")]
-                        for row in table.find_all("tr")[1:]
+                for semester in semesters:
+                    semester_name = (
+                        semester.find("span", {"class": "foldButton"})
+                        .get_text()
+                        .strip()
+                    )
+                    sections = [
+                        section.get_text().strip().split(" ")[-1]
+                        for section in semester.find_all("h4")
                     ]
-                    schedule[semester_name][section] = []
-                    for day, hours, dates in entries:
-                        start_date, end_date = parse_dates(dates)
-                        start_time, end_time = parse_times(hours)
-                        schedule[semester_name][section].append(
-                            [
-                                start_date,
-                                end_date,
-                                start_time,
-                                end_time,
-                            ]
-                        )
+                    tables = semester.find_all("table")
+                    schedule[semester_name] = {}
+                    for section, table in zip(sections, tables):
+                        entries = [
+                            [cell.get_text().strip() for cell in row.find_all("td")]
+                            for row in table.find_all("tr")[1:]
+                        ]
+                        schedule[semester_name][section] = []
+                        for day, hours, dates in entries:
+                            start_date, end_date = parse_dates(dates)
+
+                            start_time, end_time = parse_times(hours)
+                            schedule["long_name"] = long_name
+                            schedule[semester_name][section].append(
+                                [
+                                    start_date,
+                                    end_date,
+                                    start_time,
+                                    end_time,
+                                ]
+                            )
+
+        pickle.dump(schedule, f)
 
     return schedule
 
 
 def main():
+    classes = [
+        "MAT 1410-A",
+        "MAT 1410-A101",
+        # "MAT 2050-A",
+        # "MAT 2050-A101",
+        # "PHY 1441-A",
+        # "PHY 1441-A1",
+        # "PHY 1620-A",
+        # "PHY 1620-A1",
+        # "PHY 1652-A",
+        # "PHY 1652-A1",
+    ]
+    target_semester = "Hiver 2023"
+
     c = ics.Calendar()
+    for long_name in classes:
 
-    class_name = "mat-1000"
-    schedule = get_schedule(class_name)
-    for semester_name, semester in schedule.items():
-        for section, hours in semester.items():
-            for entry in hours:
-                start_date, end_date, start_time, end_time = entry
+        class_name, target_section = parse_class_name(long_name)
+        schedule = get_schedule(class_name)
+        for semester_name, semester in schedule.items():
+            if semester_name != target_semester:
+                continue
+            for section, hours in semester.items():
+                if section != target_section:
+                    continue
 
-                e = ics.Event()
-                e.summary = section
-                e.description = "A meaningful description"
+                for entry in hours:
+                    start_date, end_date, start_time, end_time = entry
 
-                real_start_datetime = datetime.datetime.combine(start_date, start_time)
-                real_end_datetime = datetime.datetime.combine(start_date, end_time)
+                    e = ics.Event()
+                    e.summary = long_name
+                    e.description = "A meaningful description"
 
-                e.begin = real_start_datetime
-                e.end = real_end_datetime
-                count = (end_date - start_date).days // 7
-                line = [f"RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT={count}"]
-                e.extra = ics.Container(
-                    name="VEVENT", data=[ics.contentline.lines_to_container(line)]
-                )
+                    real_start_datetime = datetime.datetime.combine(
+                        start_date, start_time
+                    )
+                    real_end_datetime = datetime.datetime.combine(start_date, end_time)
 
-                c.events.append(e)
+                    e.begin = real_start_datetime
+                    e.end = real_end_datetime
+                    count = (end_date - start_date).days // 7 + 1
+                    line = [f"RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT={count}"]
+                    e.extra = ics.Container(
+                        name="VEVENT", data=[ics.contentline.lines_to_container(line)]
+                    )
 
-    with open("my.ics", "w") as my_file:
+                    c.events.append(e)
+
+    with open(f"my_cal.ics", "w") as my_file:
         my_file.writelines(c.serialize())
 
 
