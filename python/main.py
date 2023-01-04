@@ -1,11 +1,12 @@
+import argparse
 import datetime
+import functools
+import os
+import pickle
 
 import bs4
 import ics
-import pickle
-import os
 import requests
-import functools
 
 
 def parse_dates(date_str):
@@ -52,8 +53,13 @@ def class_url(class_name):
 def get_schedule(class_name):
     schedule = {}
 
+    CACHE_INVALIDATION_THRES_S = 60 * 60
     file_name = f"{class_name}.pickle"
-    if os.path.exists(file_name):
+    if (
+        os.path.exists(file_name)
+        and datetime.datetime.now().timestamp() - os.path.getmtime(file_name)
+        < CACHE_INVALIDATION_THRES_S
+    ):
         f = open(file_name, "rb")
         schedule = pickle.load(f)
     else:
@@ -107,28 +113,31 @@ def get_schedule(class_name):
     return schedule
 
 
-def main():
-    classes = [
-        "MAT 1410-A",
-        "MAT 1410-A101",
-        # "MAT 2050-A",
-        # "MAT 2050-A101",
-        # "PHY 1441-A",
-        # "PHY 1441-A1",
-        # "PHY 1620-A",
-        # "PHY 1620-A1",
-        # "PHY 1652-A",
-        # "PHY 1652-A1",
-    ]
-    target_semester = "Hiver 2023"
+def main(args):
+    request = {
+        "classes": [
+            "MAT 1410-A",
+            "MAT 1410-A101",
+            "MAT 2050-A",
+            "MAT 2050-A101",
+            "PHY 1441-A",
+            "PHY 1441-A1",
+            "PHY 1620-A",
+            "PHY 1620-A1",
+            "PHY 1652-A",
+            "PHY 1652-A1",
+        ],
+        "semester": "Hiver 2023",
+    }
+    cal_file_name = args.out_file
 
     c = ics.Calendar()
-    for long_name in classes:
+    for long_name in request["classes"]:
 
         class_name, target_section = parse_class_name(long_name)
         schedule = get_schedule(class_name)
         for semester_name, semester in schedule.items():
-            if semester_name != target_semester:
+            if semester_name != request["semester"]:
                 continue
             for section, hours in semester.items():
                 if section != target_section:
@@ -156,9 +165,21 @@ def main():
 
                     c.events.append(e)
 
-    with open(f"my_cal.ics", "w") as my_file:
+    with open(cal_file_name, "w") as my_file:
         my_file.writelines(c.serialize())
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("request_file")
+    # parser.add_argument("out-file")
+
+    args = parser.parse_args()
+    args.out_file = "my_cal.ics"
+
+    return args
+
+
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
