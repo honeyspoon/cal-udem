@@ -1,11 +1,9 @@
-const ics = require("ics");
-const nodePickle = require("node-pickle");
-const fs = require("fs");
+import fetch from "node-fetch";
 
-// nodePickle.dump({ hello: "hdaf" });
-// .then(data => ({
-//   console.log(data);
-// });
+const ics = require("ics");
+const fs = require("fs");
+const util = require("util");
+const cheerio = require("cheerio");
 
 function parse_weekday(weekday) {
   d = {
@@ -26,49 +24,70 @@ function parse_class_name(class_name) {
   name = name.toLowerCase();
   name = name.replace(" ", "-");
 
-  return name, section;
+  return [name, section];
 }
 
 function class_url(class_name) {
-  return `"https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
+  return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
 }
 
-function get_schedule(class_name) {
-  const schedule = {};
-  const CACHE_INVALIDATION_THRES_S = 60 * 60;
+const open = util.promisify(fs.open);
+const close = util.promisify(fs.close);
+const stat = util.promisify(fs.stat);
+const read = util.promisify(fs.read);
+const readFile = util.promisify(fs.readFile);
+const write = util.promisify(fs.write);
 
-  const file_name = `${class_name}.pickle`;
+async function get_schedule(class_name) {
+  let schedule;
+
+  const file_name = `${class_name}.json`;
+  // const THRESH_S = 60 * 60;
+  const THRESH_S = 1;
+
   try {
-    const stats = fs.statSync(file_name);
-    console.log("yep", stats);
-    const file = fs.openSync(file_name, "r");
-  } catch {
-    console.log("nope");
+    // TODO: get rid of this
+    // I hate this control flow with exceptions
+    // gotta find a way to have the fs options return a tuple of a result and an error and match it
+    const stats = await stat(file_name);
+    const current_ts = Math.floor(Date.now());
+    const m = (current_ts - stats.mtime) / 1000;
+
+    if (m > THRESH_S) {
+      throw new Error("old");
+    }
+
+    const file = await open(file_name, "r");
+    const res = await readFile(file);
+    const data = res.toString().toString();
+    schedule = JSON.parse(data);
+    await close(file);
+  } catch (err) {
+    console.log(err);
+    const file = await open(file_name, "w");
     const url = class_url(class_name);
-    const file = fs.openSync(file_name, "w");
+    const res = await fetch(url);
+    const data = await res.text();
+    const $ = cheerio.load(data);
+    const long_name = $("h1.featuredTitle").text();
+    const semesters = $("section.horaire-folder > div.fold");
+    for (let semester of semesters) {
+      const name = $(semester).find("span.foldButton").text().trim();
+      const sections = $(semester).find(".foldContent > h4");
+      for (let section of sections) {
+        console.log(section.text());
+      }
+      console.log(sections);
+    }
+
+    schedule = { long_name };
+
+    await write(file, JSON.stringify(schedule));
+    await close(file);
   }
-  //     f = open(file_name, "rb")
-  //     schedule = pickle.load(f)
-  // else:
-  //     f = open(file_name, "wb")
-  //
-  //     url = class_url(class_name)
-  //     result = requests.get(url)
-  //     if result:
-  //         if True:
-  //             data = result.text
-  //             soup = bs4.BeautifulSoup(data, "html.parser")
-  //
-  //             long_name = soup.find("h1", {"class": "featuredTitle"}).get_text()
-  //             schedule_section = soup.find("section", {"class": "horaire-folder"})
-  //             semesters = schedule_section.find_all("div", {"class": "fold"})
-  //
-  //             for semester in semesters:
-  //                 semester_name = (
-  //                     semester.find("span", {"class": "foldButton"})
-  //                     .get_text()
-  //                     .strip()
-  //                 )
+
+  console.log("schedule", schedule);
+
   //                 sections = [
   //                     section.get_text().strip().split(" ")[-1]
   //                     for section in semester.find_all("h4")
@@ -94,8 +113,6 @@ function get_schedule(class_name) {
   //                                 end_time,
   //                             ]
   //                         )
-  //
-  //     pickle.dump(schedule, f)
 
   return schedule;
 }
@@ -103,22 +120,22 @@ function get_schedule(class_name) {
 export async function generate() {
   const classes = [
     "MAT 1410-A",
-    "MAT 1410-A101",
-    "MAT 2050-A",
-    "MAT 2050-A101",
-    "PHY 1441-A",
-    "PHY 1441-A1",
-    "PHY 1620-A",
-    "PHY 1620-A1",
-    "PHY 1652-A",
-    "PHY 1652-A1",
+    // "MAT 1410-A101",
+    // "MAT 2050-A",
+    // "MAT 2050-A101",
+    // "PHY 1441-A",
+    // "PHY 1441-A1",
+    // "PHY 1620-A",
+    // "PHY 1620-A1",
+    // "PHY 1652-A",
+    // "PHY 1652-A1",
   ];
 
   const semester = "Hiver 2023";
   for (let c of classes) {
     const [class_name, section] = parse_class_name(c);
     const schedule = get_schedule(class_name);
-    console.log(schedule);
+    // console.log(schedule);
   }
 
   const event = {
