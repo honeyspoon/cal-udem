@@ -49,17 +49,16 @@ export default function Home() {
           </div>
         ))}
         <button>generer</button>
-
-        <FullCalendar
-          plugins={[timeGridPlugin, iCalendarPlugin]}
-          initialView="timeGridWeek"
-          weekends={false}
-          events={{
-            url: "/api/hello",
-            format: "ics",
-          }}
-        />
       </main>
+      <FullCalendar
+        plugins={[timeGridPlugin, iCalendarPlugin]}
+        initialView="timeGridWeek"
+        weekends={false}
+        events={{
+          url: "/api/hello",
+          format: "ics",
+        }}
+      />
       <footer className={styles.footer}></footer>
     </div>
   );
