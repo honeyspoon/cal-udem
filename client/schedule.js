@@ -6,7 +6,7 @@ const util = require("util");
 const cheerio = require("cheerio");
 
 function parse_weekday(weekday) {
-  d = {
+  const d = {
     Lundi: 0,
     Mardi: 1,
     Mercredi: 2,
@@ -34,12 +34,11 @@ function class_url(class_name) {
 const open = util.promisify(fs.open);
 const close = util.promisify(fs.close);
 const stat = util.promisify(fs.stat);
-const read = util.promisify(fs.read);
 const readFile = util.promisify(fs.readFile);
 const write = util.promisify(fs.write);
 
 async function get_schedule(class_name) {
-  let schedule;
+  let schedule = {};
 
   const file_name = `${class_name}.json`;
   // const THRESH_S = 60 * 60;
@@ -70,17 +69,33 @@ async function get_schedule(class_name) {
     const data = await res.text();
     const $ = cheerio.load(data);
     const long_name = $("h1.featuredTitle").text();
-    const semesters = $("section.horaire-folder > div.fold");
-    for (let semester of semesters) {
-      const name = $(semester).find("span.foldButton").text().trim();
-      const sections = $(semester).find(".foldContent > h4");
-      for (let section of sections) {
-        console.log(section.text());
-      }
-      console.log(sections);
-    }
+    const semesters = $("section.horaire-folder > div.fold").slice(0, -1);
 
-    schedule = { long_name };
+    schedule["long_name"] = long_name;
+
+    for (let semester of semesters) {
+      const semester_name = $(semester).find(".foldButton").text().trim();
+      schedule[semester_name] = {};
+      const sections = $(semester)
+        .find("h4")
+        .toArray()
+        .map((e) => $(e).text().trim().split(" ").at(-1));
+
+      $("table", semester).each((i, t) => {
+        const section = sections[i];
+        const entries = $(t)
+          .find("tr")
+          .slice(1)
+          .toArray()
+          .map((row) =>
+            $(row)
+              .find("td")
+              .toArray()
+              .map((cell) => $(cell).text().trim())
+          );
+        console.log(entries);
+      });
+    }
 
     await write(file, JSON.stringify(schedule));
     await close(file);
@@ -88,10 +103,6 @@ async function get_schedule(class_name) {
 
   console.log("schedule", schedule);
 
-  //                 sections = [
-  //                     section.get_text().strip().split(" ")[-1]
-  //                     for section in semester.find_all("h4")
-  //                 ]
   //                 tables = semester.find_all("table")
   //                 schedule[semester_name] = {}
   //                 for section, table in zip(sections, tables):
