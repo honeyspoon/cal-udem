@@ -3,6 +3,10 @@ import Image from "next/image";
 import styles from "../styles/Home.module.css";
 import { useState } from "react";
 
+import FullCalendar from "@fullcalendar/react"; // must go before plugins
+import timeGridPlugin from "@fullcalendar/timegrid";
+import iCalendarPlugin from "@fullcalendar/icalendar";
+
 export default function Home() {
   const [classes, setClasses] = useState(new Set());
 
@@ -45,8 +49,17 @@ export default function Home() {
           </div>
         ))}
         <button>generer</button>
-      </main>
 
+        <FullCalendar
+          plugins={[timeGridPlugin, iCalendarPlugin]}
+          initialView="timeGridWeek"
+          weekends={false}
+          events={{
+            url: "/api/hello",
+            format: "ics",
+          }}
+        />
+      </main>
       <footer className={styles.footer}></footer>
     </div>
   );
