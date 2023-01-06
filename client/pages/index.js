@@ -92,13 +92,9 @@ export default function Home() {
 
         <button>generer</button>
 
-        <button
-          onClick={() => {
-            console.log("hey");
-          }}
-        >
+        <a href={calendarURL(target_semester, classes)} download="calendar.ics">
           exporter en .ics
-        </button>
+        </a>
       </main>
 
       {classes && (
