@@ -3,7 +3,7 @@ import Head from "next/head";
 import styles from "../styles/Home.module.css";
 import { useQueryParam, ArrayParam, withDefault } from "use-query-params";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
