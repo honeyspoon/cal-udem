@@ -16,7 +16,6 @@ import iCalendarPlugin from "@fullcalendar/icalendar";
 import frLocale from "@fullcalendar/core/locales/fr";
 
 const initialDate = "2023-01-09";
-const target_semester = "Hiver 2023";
 
 function calendarURL(semester, classes) {
   const base_url = "/api/get_calendar";
@@ -29,12 +28,13 @@ function calendarURL(semester, classes) {
   return url;
 }
 
+// TODO:
 const semesters = ["Hiver 2023", "Automne 2022", "Hiver 2022"];
 
 export default function Home() {
   const [semester, setSemester] = useQueryParam(
     "semester",
-    withDefault(StringParam, target_semester)
+    withDefault(StringParam, semesters[0])
   );
   const [classes, setClasses] = useQueryParam(
     "classes",
@@ -45,7 +45,7 @@ export default function Home() {
 
   useEffect(() => {
     setCalUrl(calendarURL(semester, classes));
-  }, [classes]);
+  }, [classes, semester]);
 
   return (
     <div className={styles.container}>
@@ -56,23 +56,23 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1 className={styles.title}>Calendrier udem</h1>
-        <form autoComplete="off">
-          <div>
-            <input
-              type="text"
-              onKeyUp={(e) => {
-                if (e.keyCode === 13) {
+
+        <div className="mt-5 md:col-span-2 md:mt-0">
+          <div className="overflow-hidden shadow sm:rounded-md">
+            <div className="col-span-6 sm:col-span-3">
+              <select
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                onChange={(e) => {
                   setSemester(e.target.value);
-                }
-              }}
-              id="myInput"
-              name="semester"
-              placeholder="Session"
-            />
+                }}
+              >
+                {semesters.map((s, i) => (
+                  <option key={i}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </form>
-        <input />
-        {semester}
+        </div>
 
         <input
           type="text"
@@ -101,14 +101,16 @@ export default function Home() {
           </div>
         ))}
 
-        <button>generer</button>
-
-        <a href={calendarURL(target_semester, classes)} download="calendar.ics">
-          exporter en .ics
+        <a
+          class="px-4 py-1 text-sm text-purple-600 font-semibold rounded-full border border-purple-200 hover:text-white hover:bg-purple-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
+          href={calendarURL(semester, classes)}
+          download="calendar.ics"
+        >
+          Exporter en .ics
         </a>
       </main>
 
-      {classes && (
+      {classes.length > 0 && (
         <FullCalendar
           plugins={[timeGridPlugin, iCalendarPlugin]}
           initialView="timeGridWeek"
