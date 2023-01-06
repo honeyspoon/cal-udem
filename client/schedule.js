@@ -5,7 +5,7 @@ const fs = require("fs");
 const util = require("util");
 const cheerio = require("cheerio");
 
-const ical = require("ical-generator");
+import ical, { ICalCategory } from "ical-generator";
 
 function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
@@ -139,6 +139,13 @@ export async function generate(target_semester, classes) {
     generator: getVtimezoneComponent,
   });
 
+  const categories = new Proxy(
+    {},
+    {
+      get: (target, name) =>
+        name in target ? target[name] : new ICalCategory({ name: target }),
+    }
+  ); // defaultdict
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
       calendar.createEvent({
@@ -150,6 +157,13 @@ export async function generate(target_semester, classes) {
           freq: "WEEKLY",
           count,
         },
+        categories: [
+          categories["udem"],
+          categories["school"],
+          categories[class_name],
+          categories[target_section],
+          categories[long_name],
+        ],
       });
     }
   }
