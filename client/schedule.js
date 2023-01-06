@@ -115,12 +115,14 @@ async function get_schedule(class_name) {
   return schedule;
 }
 
-export async function generate(classes) {
-  const target_semester = "Hiver 2023";
+export async function generate(target_semester, classes) {
   const schedules = await Promise.all(
     classes.map(async (c) => {
       const [class_name, section] = parse_class_name(c);
       const schedule = await get_schedule(class_name);
+      if (!schedule[target_semester]) {
+        console.log("missing", target_semester);
+      }
       return [
         class_name,
         section,

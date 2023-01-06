@@ -1,7 +1,12 @@
 import Head from "next/head";
 
 import styles from "../styles/Home.module.css";
-import { useQueryParam, ArrayParam, withDefault } from "use-query-params";
+import {
+  useQueryParam,
+  StringParam,
+  ArrayParam,
+  withDefault,
+} from "use-query-params";
 
 import React, { useEffect, useState } from "react";
 
@@ -10,26 +15,32 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import iCalendarPlugin from "@fullcalendar/icalendar";
 
 const initialDate = Date.parse("2023-01-09");
+const target_semester = "Hiver 2023";
 
-function classesToUrl(classes) {
+function calendarURL(semester, classes) {
   const base_url = "/api/get_calendar";
 
   const params = new URLSearchParams();
   params.set("classes", classes);
+  params.set("semester", semester);
 
   return `${base_url}?${params.toString()}`;
 }
 
 export default function Home() {
+  const [semester, setSemester] = useQueryParam(
+    "semester",
+    withDefault(StringParam, target_semester)
+  );
   const [classes, setClasses] = useQueryParam(
     "classes",
     withDefault(ArrayParam, [])
   );
 
-  const [calUrl, setCalUrl] = useState(classesToUrl(classes));
+  const [calUrl, setCalUrl] = useState(calendarURL(semester, classes));
 
   useEffect(() => {
-    setCalUrl(classesToUrl(classes));
+    setCalUrl(calendarURL(semester, classes));
     console.log("change in classes", classes);
   }, [classes]);
 
@@ -42,6 +53,15 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1 className={styles.title}>Calendrier udem</h1>
+        <input
+          type="text"
+          onKeyUp={(e) => {
+            if (e.keyCode === 13) {
+              setSemester(e.target.value);
+            }
+          }}
+        />
+        {semester}
 
         <input
           type="text"
