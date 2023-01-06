@@ -100,7 +100,7 @@ async function get_schedule(class_name) {
               .toArray()
               .map((cell) => $(cell).text().trim())
           );
-        for (let [_, times, dates] of entries) {
+        for (let [, times, dates] of entries) {
           const [start_date, duration, count] = parse_datetime(dates, times);
 
           schedule[semester_name][section].push([start_date, duration, count]);
@@ -165,7 +165,7 @@ export async function generate(classes) {
   }
 
   const cal = await createEventAsync(events);
-  await fs.writeFileSync("my_cal.ics", cal);
+  fs.writeFileSync("my_cal.ics", cal);
   return cal;
   // return "sup";
 }
