@@ -103,6 +103,7 @@ export default function Home() {
           initialView="timeGridWeek"
           weekends={false}
           initialDate={initialDate}
+          slotMinTime={"08:00:00"}
           events={{
             url: calUrl,
             format: "ics",
