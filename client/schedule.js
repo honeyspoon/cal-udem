@@ -1,30 +1,32 @@
 import fetch from "node-fetch";
+import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 
-const ics = require("ics");
 const fs = require("fs");
 const util = require("util");
 const cheerio = require("cheerio");
 
-function parse_date(date_str) {
+const ical = require("ical-generator");
+
+function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
 
-  return [year, month, day];
+  return new Date(`${year}-${month}-${day} ${hour}:${min}`);
 }
 
 function parse_datetime(date_str, time_str) {
   const [, s_date, , e_date] = date_str.split(" ");
   let [, s_hour, , s_min, , e_hour, , e_min] = time_str.split(" ");
 
-  const parsed_start_date = parse_date(s_date);
-  const parsed_end_date = parse_date(e_date);
+  const parsed_start_time = parse_date(s_date, s_hour, s_min);
+  const parsed_end_time = parse_date(s_date, e_hour, e_min);
+  const parsed_end_date = parse_date(e_date, e_hour, e_min);
 
-  const start_date = [...parsed_start_date, s_hour, s_min].map((e) =>
-    parseInt(e)
-  );
-  const duration = { hours: e_hour - s_hour, minutes: e_min - s_min + 1 };
-  const count = 1;
+  const weeks =
+    (parsed_end_date.getTime() - parsed_start_time.getTime()) /
+      (1000 * 60 * 60 * 24 * 7) +
+    1;
 
-  return [start_date, duration, count];
+  return [parsed_start_time, parsed_end_time, weeks];
 }
 
 function parse_class_name(class_name) {
@@ -50,6 +52,7 @@ async function get_schedule(class_name) {
 
   const file_name = `data/${class_name}.json`;
   const THRESH_S = 60 * 60 * 2;
+  // const THRESH_S = 5;
 
   try {
     // TODO: get rid of this
@@ -69,7 +72,6 @@ async function get_schedule(class_name) {
     schedule = JSON.parse(data);
     await close(file);
   } catch (err) {
-    const file = await open(file_name, "w");
     const url = class_url(class_name);
     const res = await fetch(url);
     const data = await res.text();
@@ -108,6 +110,7 @@ async function get_schedule(class_name) {
       });
     }
 
+    const file = await open(file_name, "w");
     await write(file, JSON.stringify(schedule));
     await close(file);
   }
@@ -120,9 +123,6 @@ export async function generate(target_semester, classes) {
     classes.map(async (c) => {
       const [class_name, section] = parse_class_name(c);
       const schedule = await get_schedule(class_name);
-      if (!schedule[target_semester]) {
-        console.log("missing", target_semester);
-      }
       return [
         class_name,
         section,
@@ -132,54 +132,27 @@ export async function generate(target_semester, classes) {
     })
   );
 
-  const events = [];
+  const calendar = ical({ name: "my calendar" });
+
+  calendar.timezone({
+    name: "America/New_York",
+    generator: getVtimezoneComponent,
+  });
+
   for (const [class_name, target_section, long_name, schedule] of schedules) {
-    for (const [start, duration, count] of schedule) {
-      events.push({
-        start,
-        duration,
-        title: `${long_name} ${target_section}`,
-        description: "",
-        location: "udem",
-        url: "https://www.google.com",
-        // geo: { lat: 40.0095, lon: 105.2669 },
-        categories: ["school", class_name, target_semester, target_section],
-        busyStatus: "BUSY",
-        organizer: { name: "Admin", email: "bobmatt911@gmail.com" },
-        recurrenceRule: `FREQ=WEEKLY;INTERVAL=1;COUNT=${count}`,
-        attendees: [
-          {
-            name: "Adam Gibbons",
-            email: "adam@example.com",
-            rsvp: true,
-            partstat: "ACCEPTED",
-            role: "REQ-PARTICIPANT",
-          },
-          {
-            name: "Brittany Seaton",
-            email: "brittany@example2.org",
-            dir: "https://linkedin.com/in/brittanyseaton",
-            role: "OPT-PARTICIPANT",
-          },
-        ],
+    for (const [startTime, endTime, count] of schedule) {
+      calendar.createEvent({
+        start: startTime,
+        end: endTime,
+        summary: `${long_name} ${target_section}`,
+        url: class_url(class_name),
+        repeating: {
+          freq: "WEEKLY",
+          count,
+        },
       });
     }
   }
 
-  const cal = await createEventAsync(events);
-  fs.writeFileSync("my_cal.ics", cal);
-  return cal;
-  // return "sup";
-}
-
-function createEventAsync(events) {
-  return new Promise((resolve, reject) => {
-    ics.createEvents(events, (error, value) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(value);
-      }
-    });
-  });
+  return calendar;
 }

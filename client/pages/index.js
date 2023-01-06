@@ -13,8 +13,9 @@ import React, { useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import iCalendarPlugin from "@fullcalendar/icalendar";
+import frLocale from "@fullcalendar/core/locales/fr";
 
-const initialDate = Date.parse("2023-01-09");
+const initialDate = "2023-01-09";
 const target_semester = "Hiver 2023";
 
 function calendarURL(semester, classes) {
@@ -24,8 +25,11 @@ function calendarURL(semester, classes) {
   params.set("classes", classes);
   params.set("semester", semester);
 
-  return `${base_url}?${params.toString()}`;
+  const url = `${base_url}?${params.toString()}`;
+  return url;
 }
+
+const semesters = ["Hiver 2023", "Automne 2022", "Hiver 2022"];
 
 export default function Home() {
   const [semester, setSemester] = useQueryParam(
@@ -41,7 +45,6 @@ export default function Home() {
 
   useEffect(() => {
     setCalUrl(calendarURL(semester, classes));
-    console.log("change in classes", classes);
   }, [classes]);
 
   return (
@@ -53,14 +56,22 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1 className={styles.title}>Calendrier udem</h1>
-        <input
-          type="text"
-          onKeyUp={(e) => {
-            if (e.keyCode === 13) {
-              setSemester(e.target.value);
-            }
-          }}
-        />
+        <form autoComplete="off">
+          <div>
+            <input
+              type="text"
+              onKeyUp={(e) => {
+                if (e.keyCode === 13) {
+                  setSemester(e.target.value);
+                }
+              }}
+              id="myInput"
+              name="semester"
+              placeholder="Session"
+            />
+          </div>
+        </form>
+        <input />
         {semester}
 
         <input
@@ -101,7 +112,10 @@ export default function Home() {
         <FullCalendar
           plugins={[timeGridPlugin, iCalendarPlugin]}
           initialView="timeGridWeek"
+          locales={frLocale}
+          locale="fr"
           weekends={false}
+          timeZone="America/New_York"
           initialDate={initialDate}
           slotMinTime={"08:00:00"}
           events={{
