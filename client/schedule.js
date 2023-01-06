@@ -115,20 +115,7 @@ async function get_schedule(class_name) {
   return schedule;
 }
 
-export async function generate() {
-  const classes = [
-    "MAT 1410-A",
-    "MAT 1410-A101",
-    "MAT 2050-A",
-    "MAT 2050-A101",
-    "PHY 1441-A",
-    "PHY 1441-A1",
-    "PHY 1620-A",
-    "PHY 1620-A1",
-    "PHY 1652-A",
-    "PHY 1652-A1",
-  ];
-
+export async function generate(classes) {
   const target_semester = "Hiver 2023";
   const schedules = await Promise.all(
     classes.map(async (c) => {

@@ -1,14 +1,37 @@
 import Head from "next/head";
-import Image from "next/image";
-import styles from "../styles/Home.module.css";
-import { useState } from "react";
 
-import FullCalendar from "@fullcalendar/react"; // must go before plugins
+import styles from "../styles/Home.module.css";
+import { useQueryParam, ArrayParam, withDefault } from "use-query-params";
+
+import { useEffect, useState } from "react";
+
+import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import iCalendarPlugin from "@fullcalendar/icalendar";
 
+const initialDate = Date.parse("2023-01-09");
+
+function classesToUrl(classes) {
+  const base_url = "/api/get_calendar";
+
+  const params = new URLSearchParams();
+  params.set("classes", classes);
+
+  return `${base_url}?${params.toString()}`;
+}
+
 export default function Home() {
-  const [classes, setClasses] = useState(new Set());
+  const [classes, setClasses] = useQueryParam(
+    "classes",
+    withDefault(ArrayParam, [])
+  );
+
+  const [calUrl, setCalUrl] = useState(classesToUrl(classes));
+
+  useEffect(() => {
+    setCalUrl(classesToUrl(classes));
+    console.log("change in classes", classes);
+  }, [classes]);
 
   return (
     <div className={styles.container}>
@@ -17,7 +40,6 @@ export default function Home() {
         <meta name="description" content="" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
       <main className={styles.main}>
         <h1 className={styles.title}>Calendrier udem</h1>
 
@@ -27,8 +49,7 @@ export default function Home() {
             if (e.keyCode === 13) {
               const s = new Set(classes);
               s.add(event.target.value);
-              console.log(s);
-              setClasses(s);
+              setClasses(Array.from(s));
               e.target.value = "";
             }
           }}
@@ -41,25 +62,41 @@ export default function Home() {
               onClick={() => {
                 const s = new Set(classes);
                 s.delete(e);
-                setClasses(s);
+                setClasses(Array.from(s));
               }}
             >
               X
             </button>
           </div>
         ))}
+
         <button>generer</button>
+
+        <button
+          onClick={() => {
+            console.log("hey");
+          }}
+        >
+          exporter en .ics
+        </button>
       </main>
-      <FullCalendar
-        plugins={[timeGridPlugin, iCalendarPlugin]}
-        initialView="timeGridWeek"
-        weekends={false}
-        events={{
-          url: "/api/hello",
-          format: "ics",
-        }}
-      />
-      <footer className={styles.footer}></footer>
+
+      {classes && (
+        <FullCalendar
+          plugins={[timeGridPlugin, iCalendarPlugin]}
+          initialView="timeGridWeek"
+          weekends={false}
+          initialDate={initialDate}
+          events={{
+            url: calUrl,
+            format: "ics",
+          }}
+        />
+      )}
+      <footer className={styles.footer}>
+        <a href="https://github.com/hnspn/cal-udem">github</a>
+        @Abderahmane Bouziane
+      </footer>
     </div>
   );
 }
