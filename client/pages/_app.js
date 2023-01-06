@@ -1,5 +1,6 @@
 import "../styles/globals.css";
 
+import React from "react";
 import { NextAdapter } from "next-query-params";
 import { QueryParamProvider } from "use-query-params";
 

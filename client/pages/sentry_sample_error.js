@@ -1,4 +1,5 @@
 import Head from "next/head";
+import React from "react";
 
 const boxStyles = {
   padding: "12px",
