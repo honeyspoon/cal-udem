@@ -47,12 +47,12 @@ const stat = util.promisify(fs.stat);
 const readFile = util.promisify(fs.readFile);
 const write = util.promisify(fs.write);
 
+const THRESH_S = 60 * 60 * 24;
+// const THRESH_S = 5;
 async function get_schedule(class_name) {
   let schedule = {};
 
   const file_name = `data/${class_name}.json`;
-  const THRESH_S = 60 * 60 * 2;
-  // const THRESH_S = 5;
 
   try {
     // TODO: get rid of this
