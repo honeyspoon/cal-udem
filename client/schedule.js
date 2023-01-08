@@ -21,10 +21,11 @@ function parse_datetime(date_str, time_str) {
   const parsed_end_time = parse_date(s_date, e_hour, e_min);
   const parsed_end_date = parse_date(e_date, e_hour, e_min);
 
-  const weeks =
+  const weeks = Math.floor(
     (parsed_end_date.getTime() - parsed_start_time.getTime()) /
       (1000 * 60 * 60 * 24 * 7) +
-    1;
+      1
+  );
 
   return [parsed_start_time, parsed_end_time, weeks];
 }
