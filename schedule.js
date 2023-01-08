@@ -1,8 +1,21 @@
 import fetch from "node-fetch";
 import { getVtimezoneComponent } from "@touch4it/ical-timezones";
+import S3 from "aws-sdk/clients/s3.js";
 
-const fs = require("fs");
-const util = require("util");
+require("dotenv").config();
+
+const accountid = process.env.CLOUDFLARE_ACCOUNT_ID;
+const access_key_id = process.env.CLOUDFLARE_ACCESS_KEY_ID;
+const access_key_secret = process.env.CLOUDFLARE_ACCESS_KEY_SECRET;
+console.log({ accountid, access_key_id, access_key_secret });
+const s3 = new S3({
+  endpoint: `https://${accountid}.r2.cloudflarestorage.com`,
+  accessKeyId: `${access_key_id}`,
+  secretAccessKey: `${access_key_secret}`,
+  signatureVersion: "v4",
+});
+const Bucket = "schedules";
+
 const cheerio = require("cheerio");
 
 import ical, { ICalCategory } from "ical-generator";
@@ -41,37 +54,32 @@ function parse_class_name(class_name) {
 function class_url(class_name) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
 }
-
-const open = util.promisify(fs.open);
-const close = util.promisify(fs.close);
-const stat = util.promisify(fs.stat);
-const readFile = util.promisify(fs.readFile);
-const write = util.promisify(fs.write);
-
-const THRESH_S = 60 * 60 * 24;
+const THRESH_S = 60 * 60 * 24 * 7; // a week
 // const THRESH_S = 5;
 async function get_schedule(class_name) {
   let schedule = {};
 
-  const file_name = `data/${class_name}.json`;
-
+  const key = `${class_name}.json`;
   try {
     // TODO: get rid of this
     // I hate this control flow with exceptions
     // gotta find a way to have the fs options return a tuple of a result and an error and match it
-    const stats = await stat(file_name);
     const current_ts = Math.floor(Date.now());
-    const m = (current_ts - stats.mtime) / 1000;
 
+    const res = await s3
+      .getObject({
+        Key: key,
+        Bucket,
+      })
+      .promise();
+
+    const m = (current_ts - res["LastModified"]) / 1000;
     if (m > THRESH_S) {
       throw new Error("old");
     }
 
-    const file = await open(file_name, "r");
-    const res = await readFile(file);
-    const data = res.toString().toString();
+    const data = res["Body"];
     schedule = JSON.parse(data);
-    await close(file);
   } catch (err) {
     const url = class_url(class_name);
     const res = await fetch(url);
@@ -111,9 +119,13 @@ async function get_schedule(class_name) {
       });
     }
 
-    const file = await open(file_name, "w");
-    await write(file, JSON.stringify(schedule));
-    await close(file);
+    await s3
+      .putObject({
+        Key: key,
+        Body: JSON.stringify(schedule),
+        Bucket,
+      })
+      .promise();
   }
 
   return schedule;
