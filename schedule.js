@@ -7,7 +7,7 @@ require("dotenv").config();
 const accountid = process.env.CLOUDFLARE_ACCOUNT_ID;
 const access_key_id = process.env.CLOUDFLARE_ACCESS_KEY_ID;
 const access_key_secret = process.env.CLOUDFLARE_ACCESS_KEY_SECRET;
-console.log({ accountid, access_key_id, access_key_secret });
+
 const s3 = new S3({
   endpoint: `https://${accountid}.r2.cloudflarestorage.com`,
   accessKeyId: `${access_key_id}`,
@@ -23,7 +23,7 @@ import ical, { ICalCategory } from "ical-generator";
 function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
 
-  return new Date(`${year}-${month}-${day} ${hour}:${min}`);
+  return new Date(`${year}-${month}-${day} ${hour}:${min}`).getTime();
 }
 
 function parse_datetime(date_str, time_str) {
@@ -35,9 +35,7 @@ function parse_datetime(date_str, time_str) {
   const parsed_end_date = parse_date(e_date, e_hour, e_min);
 
   const weeks = Math.floor(
-    (parsed_end_date.getTime() - parsed_start_time.getTime()) /
-      (1000 * 60 * 60 * 24 * 7) +
-      1
+    (parsed_end_date - parsed_start_time) / (1000 * 60 * 60 * 24 * 7) + 1
   );
 
   return [parsed_start_time, parsed_end_time, weeks];
@@ -152,31 +150,31 @@ export async function generate(target_semester, classes) {
     generator: getVtimezoneComponent,
   });
 
-  const categories = new Proxy(
-    {},
-    {
-      get: (target, name) =>
-        name in target ? target[name] : new ICalCategory({ name: target }),
-    }
-  ); // defaultdict
+  // const categories = new Proxy(
+  //   {},
+  //   {
+  //     get: (target, name) =>
+  //       name in target ? target[name] : new ICalCategory({ name: target }),
+  //   }
+  // ); // defaultdict
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
       calendar.createEvent({
-        start: startTime,
-        end: endTime,
+        start: new Date(startTime),
+        end: new Date(endTime),
         summary: `${long_name} ${target_section}`,
         url: class_url(class_name),
         repeating: {
           freq: "WEEKLY",
           count,
         },
-        categories: [
-          categories["udem"],
-          categories["school"],
-          categories[class_name],
-          categories[target_section],
-          categories[long_name],
-        ],
+        // categories: [
+        //   categories["udem"],
+        //   categories["school"],
+        //   categories[class_name],
+        //   categories[target_section],
+        //   categories[long_name],
+        // ],
       });
     }
   }
