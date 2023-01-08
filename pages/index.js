@@ -206,6 +206,7 @@ function Footer() {
                 title="PayPal - The safer, easier way to pay online!"
                 alt="Donate with PayPal button"
               />
+
               <img
                 alt=""
                 border="0"
