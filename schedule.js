@@ -145,11 +145,6 @@ export async function generate(target_semester, classes) {
 
   const calendar = ical({ name: "my calendar" });
 
-  calendar.timezone({
-    name: "America/New_York",
-    generator: getVtimezoneComponent,
-  });
-
   // const categories = new Proxy(
   //   {},
   //   {
@@ -158,7 +153,6 @@ export async function generate(target_semester, classes) {
   //   }
   // ); // defaultdict
 
-  let a = true;
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
       const eventParams = {
@@ -166,6 +160,7 @@ export async function generate(target_semester, classes) {
         end: new Date(endTime),
         summary: `${long_name} ${target_section}`,
         url: class_url(class_name),
+        timezone: "America/New_York",
         repeating: {
           freq: "WEEKLY",
           count,
@@ -180,10 +175,6 @@ export async function generate(target_semester, classes) {
       };
 
       calendar.createEvent(eventParams);
-      if (a) {
-        a = false;
-        console.log(startTime, endTime, eventParams);
-      }
     }
   }
 
