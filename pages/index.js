@@ -35,6 +35,8 @@ const semesters = [
   "Hiver 2023",
 ];
 
+console.log("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+
 export default function Home() {
   const [semester, setSemester] = useQueryParam(
     "semester",

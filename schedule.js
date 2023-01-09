@@ -157,9 +157,11 @@ export async function generate(target_semester, classes) {
   //       name in target ? target[name] : new ICalCategory({ name: target }),
   //   }
   // ); // defaultdict
+
+  let a = true;
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
-      calendar.createEvent({
+      const eventParams = {
         start: new Date(startTime),
         end: new Date(endTime),
         summary: `${long_name} ${target_section}`,
@@ -175,7 +177,13 @@ export async function generate(target_semester, classes) {
         //   categories[target_section],
         //   categories[long_name],
         // ],
-      });
+      };
+
+      calendar.createEvent(eventParams);
+      if (a) {
+        a = false;
+        console.log(startTime, endTime, eventParams);
+      }
     }
   }
 
