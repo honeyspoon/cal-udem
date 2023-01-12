@@ -147,6 +147,7 @@ export async function generate(target_semester, classes) {
   const tz = "America/New_York";
   calendar.timezone(tz);
 
+  let a = true;
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
       const eventParams = {
@@ -160,15 +161,13 @@ export async function generate(target_semester, classes) {
           count,
         },
       };
-
       calendar.createEvent(eventParams);
+      if (a) {
+        console.log(startTime, calendar.events()[0].start(), tz);
+        a = false;
+      }
     }
   }
-
-  for (const event of calendar.events().slice(0, 1)) {
-    console.log(tz, event.start());
-  }
-  console.log("--------------");
 
   process.env.TZ = "";
 
