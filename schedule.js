@@ -150,7 +150,9 @@ export async function generate(target_semester, classes) {
   let a = true;
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
-      const s = new Date(startTime);
+      const s = new Date(startTime).toLocaleString("en-US", {
+        timeZone: "America/New_York",
+      });
       const eventParams = {
         start: new Date(startTime),
         end: new Date(endTime),
