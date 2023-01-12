@@ -1,5 +1,4 @@
 import fetch from "node-fetch";
-import { getVtimezoneComponent } from "@touch4it/ical-timezones";
 import S3 from "aws-sdk/clients/s3.js";
 
 require("dotenv").config();
@@ -144,14 +143,9 @@ export async function generate(target_semester, classes) {
   );
 
   const calendar = ical({ name: "my calendar" });
-
-  // const categories = new Proxy(
-  //   {},
-  //   {
-  //     get: (target, name) =>
-  //       name in target ? target[name] : new ICalCategory({ name: target }),
-  //   }
-  // ); // defaultdict
+  // const tz = "Europe/London";
+  const tz = "America/New_York";
+  calendar.timezone(tz);
 
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
@@ -165,18 +159,18 @@ export async function generate(target_semester, classes) {
           freq: "WEEKLY",
           count,
         },
-        // categories: [
-        //   categories["udem"],
-        //   categories["school"],
-        //   categories[class_name],
-        //   categories[target_section],
-        //   categories[long_name],
-        // ],
       };
 
       calendar.createEvent(eventParams);
     }
   }
+
+  for (const event of calendar.events().slice(0, 1)) {
+    console.log(tz, event.start());
+  }
+  console.log("--------------");
+
+  process.env.TZ = "";
 
   return calendar;
 }

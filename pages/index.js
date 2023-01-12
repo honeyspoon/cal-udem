@@ -163,10 +163,15 @@ export default function Home() {
           locales={frLocale}
           locale="fr"
           weekends={false}
-          timeZone="America/New_York"
           initialDate={initialDate}
           slotMinTime={"08:00:00"}
           allDaySlot={false}
+          headerToolbar={{
+            start: "title",
+            center: "",
+            end: "prev,next",
+          }}
+          contentHeight={400}
           events={{
             url: calUrl,
             format: "ics",

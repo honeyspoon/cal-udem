@@ -13,3 +13,6 @@
 
 - [ ] loading indicator while calendar is loading
 - [ ] error validation and user feedback
+- [ ] alerts
+- [ ] location
+    no idea how to this one yet. could ask the user for input
