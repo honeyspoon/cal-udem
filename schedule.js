@@ -143,6 +143,8 @@ export async function generate(target_semester, classes) {
   );
 
   const calendar = ical({ name: "my calendar" });
+  const tz = "America/New_York";
+  calendar.timezone(tz);
 
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
