@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "SENTRY_IGNORE_API_RESOLUTION_ERROR=1 next dev",
-    "build": "SENTRY_IGNORE_API_RESOLUTION_ERROR=1 next build",
-    "start": "SENTRY_IGNORE_API_RESOLUTION_ERROR=1 next start",
-    "lint": "SENTRY_IGNORE_API_RESOLUTION_ERROR=1 next lint"
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.2.1",
