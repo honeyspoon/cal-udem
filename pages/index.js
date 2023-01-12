@@ -16,6 +16,7 @@ import iCalendarPlugin from "@fullcalendar/icalendar";
 import frLocale from "@fullcalendar/core/locales/fr";
 
 const initialDate = "2023-01-09";
+console.log(new Date().toString());
 
 function calendarURL(semester, classes) {
   const base_url = "/api/get_calendar";

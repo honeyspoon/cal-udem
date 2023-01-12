@@ -150,12 +150,12 @@ export async function generate(target_semester, classes) {
   let a = true;
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
+      const s = new Date(startTime);
       const eventParams = {
         start: new Date(startTime),
         end: new Date(endTime),
         summary: `${long_name} ${target_section}`,
         url: class_url(class_name),
-        timezone: "America/New_York",
         repeating: {
           freq: "WEEKLY",
           count,
@@ -164,8 +164,9 @@ export async function generate(target_semester, classes) {
       calendar.createEvent(eventParams);
       if (a) {
         const e = calendar.events()[0];
-        console.log(startTime, e.start(), tz);
+        console.log(typeof s, s, s.toString(), e.start(), tz);
         console.log(e.toString());
+        console.log(e.timezone(), calendar.timezone());
         a = false;
       }
     }
