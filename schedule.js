@@ -163,7 +163,9 @@ export async function generate(target_semester, classes) {
       };
       calendar.createEvent(eventParams);
       if (a) {
-        console.log(startTime, calendar.events()[0].start(), tz);
+        const e = calendar.events()[0];
+        console.log(startTime, e.start(), tz);
+        console.log(e.toString());
         a = false;
       }
     }
