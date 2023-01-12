@@ -143,20 +143,18 @@ export async function generate(target_semester, classes) {
   );
 
   const calendar = ical({ name: "my calendar" });
-  // const tz = "Europe/London";
-  const tz = "America/New_York";
-  calendar.timezone(tz);
 
-  console.log("==========");
-  let a = true;
   for (const [class_name, target_section, long_name, schedule] of schedules) {
     for (const [startTime, endTime, count] of schedule) {
       const s = new Date(startTime).toLocaleString("en-US", {
         timeZone: "America/New_York",
       });
+      const e = new Date(endTime).toLocaleString("en-US", {
+        timeZone: "America/New_York",
+      });
       const eventParams = {
         start: s,
-        end: new Date(endTime),
+        end: e,
         summary: `${long_name} ${target_section}`,
         url: class_url(class_name),
         repeating: {
@@ -165,13 +163,6 @@ export async function generate(target_semester, classes) {
         },
       };
       calendar.createEvent(eventParams);
-      if (a) {
-        const e = calendar.events()[0];
-        console.log(typeof s, s, s.toString(), e.start(), tz);
-        console.log(e.toString());
-        console.log(e.timezone(), calendar.timezone());
-        a = false;
-      }
     }
   }
 
