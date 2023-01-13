@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import S3 from "aws-sdk/clients/s3.js";
 
 require("dotenv").config();
+const { zonedTimeToUtc } = require("date-fns-tz")
 
 const accountid = process.env.CLOUDFLARE_ACCOUNT_ID;
 const access_key_id = process.env.CLOUDFLARE_ACCESS_KEY_ID;
@@ -21,8 +22,7 @@ import ical, { ICalCategory } from "ical-generator";
 
 function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
-
-  return new Date(`${year}-${month}-${day} ${hour}:${min}`).getTime();
+  return zonedTimeToUtc(`${year}-${month}-${day} ${hour}:${min}`, "America/New_York").getTime();
 }
 
 function parse_datetime(date_str, time_str) {
@@ -168,7 +168,7 @@ export async function generate(target_semester, classes) {
     }
   }
 
-  process.env.TZ = "";
+  // process.env.TZ = "";
 
   return calendar;
 }
