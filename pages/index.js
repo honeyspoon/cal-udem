@@ -16,6 +16,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import iCalendarPlugin from "@fullcalendar/icalendar";
 import frLocale from "@fullcalendar/core/locales/fr";
 import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from "../patterns";
+import Image from "next/image";
 
 const initialDate = "2023-01-09";
 
@@ -36,8 +37,6 @@ const semesters = [
   "Automne 2023",
 ];
 
-const CLASSES = ['PHY 1620-A1', 'MAT 2050-A']
-
 function searchFromLecture(lecture) {
   return [];
 }
@@ -47,13 +46,13 @@ function searchFromTP(tp) {
 }
 
 async function searchFromURL(course) {
-  await fetch(`/api/search?term=${course}`)
+  await fetch(`/api/search/url?`)
   return [];
 }
 
-function searchFromNothing(search) {
-  const res = CLASSES.filter((e) => e.toLowerCase().includes(search.toLowerCase()));
-  return res;
+async function searchFromNothing(search) {
+  const res = await fetch(`/api/search?term=${search}`)
+  return await res.json();
 }
 
 function Search({ onSelect }) {
@@ -89,7 +88,9 @@ function Search({ onSelect }) {
     }
 
     console.log('no pattern matched')
-    setResults(searchFromNothing(search))
+    setResults(searchFromNothing(search)).then((data) => {
+
+    })
     return;
   }
 
@@ -131,7 +132,7 @@ function Search({ onSelect }) {
             <li key={`search-result-${i}`}>
               <div className="flex p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
                 <div className="ml-2 text-sm">
-                  <label for="helper-radio-4" className="font-medium text-gray-900 dark:text-gray-300">
+                  <label htmlFor="helper-radio-4" className="font-medium text-gray-900 dark:text-gray-300">
 
                     <div>{e}
                       <button
@@ -304,7 +305,7 @@ function Footer() {
                 alt="Donate with PayPal button"
               />
 
-              <img
+              <Image
                 alt=""
                 border="0"
                 src="https://www.paypal.com/en_CA/i/scr/pixel.gif"

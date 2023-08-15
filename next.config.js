@@ -7,10 +7,13 @@ const moduleExports = {
   sentry: {
     hideSourceMaps: true,
   },
+  images: {
+    domains: ['www.paypal.com'],
+  },
 };
 
-// const sentryWebpackPluginOptions = {
-//   silent: true, // Suppresses all logs
-// };
+const sentryWebpackPluginOptions = {
+  silent: true, // Suppresses all logs
+};
 
-// module.exports = withSentryConfig(moduleExports, sentryWebpackPluginOptions);
+module.exports = withSentryConfig(moduleExports, sentryWebpackPluginOptions);
