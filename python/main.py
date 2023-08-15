@@ -72,13 +72,12 @@ def get_schedule(class_name):
                 data = result.text
                 soup = bs4.BeautifulSoup(data, "html.parser")
 
-                long_name = soup.find("h1", {"class": "featuredTitle"}).get_text()
-                schedule_section = soup.find("section", {"class": "horaire-folder"})
-                semesters = schedule_section.find_all("div", {"class": "fold"})
+                long_name = soup.find("h1", {"class": "cours-titre"}).get_text()
+                semesters = soup.find_all("section", {"class": "cours-horaires-trimestre"})
 
                 for semester in semesters:
                     semester_name = (
-                        semester.find("span", {"class": "foldButton"})
+                        semester.find("h3")
                         .get_text()
                         .strip()
                     )
@@ -94,7 +93,7 @@ def get_schedule(class_name):
                             for row in table.find_all("tr")[1:]
                         ]
                         schedule[semester_name][section] = []
-                        for day, hours, dates in entries:
+                        for _, hours, dates in entries:
                             start_date, end_date = parse_dates(dates)
 
                             start_time, end_time = parse_times(hours)
@@ -102,8 +101,7 @@ def get_schedule(class_name):
                             schedule[semester_name][section].append(
                                 [
                                     start_date,
-                                    end_date,
-                                    start_time,
+                                    end_date, start_time,
                                     end_time,
                                 ]
                             )
@@ -127,7 +125,7 @@ def main(args):
             "PHY 1652-A",
             "PHY 1652-A1",
         ],
-        "semester": "Hiver 2023",
+        "semester": "Automne 2023",
     }
     cal_file_name = args.out_file
 
@@ -136,6 +134,7 @@ def main(args):
 
         class_name, target_section = parse_class_name(long_name)
         schedule = get_schedule(class_name)
+        print(schedule)
         for semester_name, semester in schedule.items():
             if semester_name != request["semester"]:
                 continue
@@ -157,13 +156,8 @@ def main(args):
 
                     e.begin = real_start_datetime
                     e.end = real_end_datetime
-                    count = (end_date - start_date).days // 7 + 1
-                    line = [f"RRULE:FREQ=WEEKLY;INTERVAL=1;COUNT={count}"]
-                    e.extra = ics.Container(
-                        name="VEVENT", data=[ics.contentline.lines_to_container(line)]
-                    )
 
-                    c.events.append(e)
+                    c.events.add(e)
 
     with open(cal_file_name, "w") as my_file:
         my_file.writelines(c.serialize())

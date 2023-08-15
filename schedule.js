@@ -2,7 +2,8 @@ import fetch from "node-fetch";
 import S3 from "aws-sdk/clients/s3.js";
 
 require("dotenv").config();
-const { zonedTimeToUtc } = require("date-fns-tz")
+const { zonedTimeToUtc } = require("date-fns-tz");
+import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from "./patterns";
 
 const accountid = process.env.CLOUDFLARE_ACCOUNT_ID;
 const access_key_id = process.env.CLOUDFLARE_ACCESS_KEY_ID;
@@ -12,26 +13,30 @@ const s3 = new S3({
   endpoint: `https://${accountid}.r2.cloudflarestorage.com`,
   accessKeyId: `${access_key_id}`,
   secretAccessKey: `${access_key_secret}`,
-  signatureVersion: "v4",
+  signatureVersion: 'v4',
 });
-const Bucket = "schedules";
+
+const Bucket = "schedules2";
 
 const cheerio = require("cheerio");
 
-import ical, { ICalCategory } from "ical-generator";
+import ical from "ical-generator";
 
 function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
-  return zonedTimeToUtc(`${year}-${month}-${day} ${hour}:${min}`, "America/New_York").getTime();
+  return zonedTimeToUtc(
+    `${year}-${month}-${day} ${hour}:${min}`,
+    "America/New_York"
+  ).getTime();
 }
 
-function parse_datetime(date_str, time_str) {
-  const [, s_date, , e_date] = date_str.split(" ");
-  let [, s_hour, , s_min, , e_hour, , e_min] = time_str.split(" ");
+function parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str) {
+  let [s_hour, , s_min] = start_time_str.split(" ");
+  let [e_hour, , e_min] = end_time_str.split(" ");
 
-  const parsed_start_time = parse_date(s_date, s_hour, s_min);
-  const parsed_end_time = parse_date(s_date, e_hour, e_min);
-  const parsed_end_date = parse_date(e_date, e_hour, e_min);
+  const parsed_start_time = parse_date(start_date_str, s_hour, s_min);
+  const parsed_end_time = parse_date(start_date_str, e_hour, e_min);
+  const parsed_end_date = parse_date(end_date_str, e_hour, e_min);
 
   const weeks = Math.floor(
     (parsed_end_date - parsed_start_time) / (1000 * 60 * 60 * 24 * 7) + 1
@@ -51,9 +56,21 @@ function parse_class_name(class_name) {
 function class_url(class_name) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
 }
-const THRESH_S = 60 * 60 * 24 * 7; // a week
-// const THRESH_S = 5;
-async function get_schedule(class_name) {
+// const THRESH_S = 60 * 60 * 24 * 7; // a week
+const THRESH_S = 5;
+
+export async function get_classes() {
+  var params = {
+    Bucket,
+    Prefix: ''
+  };
+  s3.listObjectsV2(params, function(err, data) {
+    if (err) return
+    return data;
+  });
+}
+
+export async function get_schedule(class_name) {
   let schedule = {};
 
   const key = `${class_name}.json`;
@@ -82,14 +99,17 @@ async function get_schedule(class_name) {
     const res = await fetch(url);
     const data = await res.text();
     const $ = cheerio.load(data);
-    const long_name = $("h1.featuredTitle").text();
-    const semesters = $("section.horaire-folder > div.fold").slice(0, -1);
 
+    const long_name = $("h1.cours-titre").text();
+    const semesters = $("section.cours-horaires-trimestre");
+
+    schedule["short_name"] = class_name;
     schedule["long_name"] = long_name;
 
     for (let semester of semesters) {
-      const semester_name = $(semester).find(".foldButton").text().trim();
+      const semester_name = $(semester).find("h3").text().trim();
       schedule[semester_name] = {};
+
       const sections = $(semester)
         .find("h4")
         .toArray()
@@ -98,19 +118,16 @@ async function get_schedule(class_name) {
       $("table", semester).each((i, t) => {
         const section = sections[i];
         schedule[semester_name][section] = [];
-        const entries = $(t)
+        const rows = $(t)
+          .find('tbody')
           .find("tr")
-          .slice(1)
-          .toArray()
-          .map((row) =>
-            $(row)
-              .find("td")
-              .toArray()
-              .map((cell) => $(cell).text().trim())
-          );
-        for (let [, times, dates] of entries) {
-          const [start_date, duration, count] = parse_datetime(dates, times);
+          .toArray();
 
+        for (let row of rows) {
+          const [_, hoursCell, datesCell] = $(row).find('td').toArray();
+          const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
+          const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
+          const [start_date, duration, count] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
           schedule[semester_name][section].push([start_date, duration, count]);
         }
       });
@@ -167,8 +184,6 @@ export async function generate(target_semester, classes) {
       calendar.createEvent(eventParams);
     }
   }
-
-  // process.env.TZ = "";
 
   return calendar;
 }
