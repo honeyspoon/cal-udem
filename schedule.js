@@ -3,7 +3,6 @@ import S3 from "aws-sdk/clients/s3.js";
 
 require("dotenv").config();
 const { zonedTimeToUtc } = require("date-fns-tz");
-import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from "./patterns";
 
 const accountid = process.env.CLOUDFLARE_ACCOUNT_ID;
 const access_key_id = process.env.CLOUDFLARE_ACCESS_KEY_ID;
@@ -15,6 +14,8 @@ const s3 = new S3({
   secretAccessKey: `${access_key_secret}`,
   signatureVersion: 'v4',
 });
+
+const SEMESTER = "Automne 2023"
 
 const Bucket = "schedules2";
 
@@ -34,15 +35,11 @@ function parse_datetime(start_time_str, end_time_str, start_date_str, end_date_s
   let [s_hour, , s_min] = start_time_str.split(" ");
   let [e_hour, , e_min] = end_time_str.split(" ");
 
-  const parsed_start_time = parse_date(start_date_str, s_hour, s_min);
-  const parsed_end_time = parse_date(start_date_str, e_hour, e_min);
+  const parsed_start_datetime = parse_date(start_date_str, s_hour, s_min);
+  const parsed_end_datetime = parse_date(start_date_str, e_hour, e_min);
   const parsed_end_date = parse_date(end_date_str, e_hour, e_min);
 
-  const weeks = Math.floor(
-    (parsed_end_date - parsed_start_time) / (1000 * 60 * 60 * 24 * 7) + 1
-  );
-
-  return [parsed_start_time, parsed_end_time, weeks];
+  return [parsed_start_datetime, parsed_end_datetime, parsed_end_date];
 }
 
 function parse_class_name(class_name) {
@@ -56,6 +53,7 @@ function parse_class_name(class_name) {
 function class_url(class_name) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
 }
+
 // const THRESH_S = 60 * 60 * 24 * 7; // a week
 const THRESH_S = 5;
 
@@ -64,10 +62,7 @@ export async function get_classes() {
     Bucket,
     Prefix: ''
   };
-  s3.listObjectsV2(params, function(err, data) {
-    if (err) return
-    return data;
-  });
+  return s3.listObjectsV2(params).promise();
 }
 
 export async function get_schedule(class_name) {
@@ -123,12 +118,28 @@ export async function get_schedule(class_name) {
           .find("tr")
           .toArray();
 
+
+        function get_day_number(day_str) {
+          return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
+        }
+
         for (let row of rows) {
-          const [_, hoursCell, datesCell] = $(row).find('td').toArray();
+          const [dayCell, hoursCell, datesCell] = $(row).find('td').toArray();
+          const day = $(dayCell).find('.jour_long').text().trim()
           const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
           const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
-          const [start_date, duration, count] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
-          schedule[semester_name][section].push([start_date, duration, count]);
+          const [start_datetime, end_datetime, end_date] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
+
+          const start_date_date = new Date(start_datetime);
+          const day_offset_ms = (start_date_date.getDay() + 1 - get_day_number(day)) * 60 * 60 * 24 * 1000;
+          const true_start_datetime = start_datetime - day_offset_ms;
+          const true_end_datetime = end_datetime - day_offset_ms;
+
+          const count = Math.floor(
+            (end_date - true_start_datetime) / (1000 * 60 * 60 * 24 * 7) + 1
+          );
+
+          schedule[semester_name][section].push([true_start_datetime, true_end_datetime, count]);
         }
       });
     }
@@ -145,7 +156,7 @@ export async function get_schedule(class_name) {
   return schedule;
 }
 
-export async function generate(target_semester, classes) {
+export async function generate(classes) {
   const schedules = await Promise.all(
     classes.map(async (c) => {
       const [class_name, section] = parse_class_name(c);
@@ -154,7 +165,7 @@ export async function generate(target_semester, classes) {
         class_name,
         section,
         schedule["long_name"],
-        schedule[target_semester][section],
+        schedule[SEMESTER][section],
       ];
     })
   );

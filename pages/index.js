@@ -4,7 +4,6 @@ import debounce from 'lodash.debounce';
 import styles from "../styles/Home.module.css";
 import {
   useQueryParam,
-  StringParam,
   ArrayParam,
   withDefault,
 } from "use-query-params";
@@ -18,24 +17,19 @@ import frLocale from "@fullcalendar/core/locales/fr";
 import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from "../patterns";
 import Image from "next/image";
 
-const initialDate = "2023-01-09";
+const initialDate = "2023-09-04";
 
 
-function calendarURL(semester, classes) {
+function calendarURL(classes) {
   const base_url = "/api/get_calendar";
 
   const params = new URLSearchParams();
   params.set("classes", classes);
-  params.set("semester", semester);
 
   const url = `${base_url}?${params.toString()}`;
   return url;
 }
 
-// TODO:
-const semesters = [
-  "Automne 2023",
-];
 
 function searchFromLecture(lecture) {
   return [];
@@ -88,10 +82,9 @@ function Search({ onSelect }) {
     }
 
     console.log('no pattern matched')
-    setResults(searchFromNothing(search)).then((data) => {
-
+    searchFromNothing(search).then((data) => {
+      setResults(data)
     })
-    return;
   }
 
   return (
@@ -157,20 +150,16 @@ function Search({ onSelect }) {
 }
 
 export default function Home() {
-  const [semester, setSemester] = useQueryParam(
-    "semester",
-    withDefault(StringParam, semesters[0])
-  );
   const [classes, setClasses] = useQueryParam(
     "classes",
     withDefault(ArrayParam, [])
   );
 
-  const [calUrl, setCalUrl] = useState(calendarURL(semester, classes));
+  const [calUrl, setCalUrl] = useState(calendarURL(classes));
 
   useEffect(() => {
-    setCalUrl(calendarURL(semester, classes));
-  }, [classes, semester]);
+    setCalUrl(calendarURL(classes));
+  }, [classes]);
 
   return (
     <div className={styles.container}>
@@ -181,24 +170,6 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
         <h1 className={styles.title}>Calendrier UDEM</h1>
-        <h2>beta</h2>
-
-        <div className="max-w-2xl mx-auto">
-          <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-400">
-            Choisir une session
-          </label>
-          <select
-            id="countries"
-            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            onChange={(e) => {
-              setSemester(e.target.value);
-            }}
-          >
-            {semesters.map((s, i) => (
-              <option key={i}>{s}</option>
-            ))}
-          </select>
-        </div>
 
         <div className="mt-4 max-w-2xl mx-auto">
           <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-400">
@@ -233,7 +204,7 @@ export default function Home() {
 
         <a
           className="mt-5 px-4 py-1 text-sm hover:text-purple-600 hover:bg-white font-semibold rounded border border-purple-200 text-white bg-purple-600 border-transparent hover:border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
-          href={calendarURL(semester, classes)}
+          href={calendarURL(classes)}
           download="calendar.ics"
         >
           Exporter en .ics
