@@ -125,11 +125,19 @@ function Search({ onSelect }) {
         </div>
         <input
           type="text"
-          className="bg-gray-50 
+          className={
+            `bg-gray-50 
           border 
-          border-gray-300 
+          border-gray-300
           text-gray-900 
-          text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-10 p-2.5"
+          text-sm 
+          rounded-lg 
+          focus:outline-none
+          focus:ring-${error ? 'red' : 'blue'}-500
+          focus:border-${error ? 'red' : 'blue'}-500 
+          block 
+          w-full 
+          pl-10 p-2.5`}
           placeholder="Recherche"
           required
           onInput={debounce((e) => {
