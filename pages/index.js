@@ -10,7 +10,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import iCalendarPlugin from '@fullcalendar/icalendar';
 import frLocale from '@fullcalendar/core/locales/fr';
-import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from '../patterns';
+import { COURSE_REGEX } from '../patterns';
 import Image from 'next/image';
 
 const initialDate = '2023-09-04';
@@ -20,7 +20,7 @@ function Spinner() {
     <div role="status">
       <svg
         aria-hidden="true"
-        className="w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
+        className="w-8 h-8 mr-2 text-gray-200 animate-spin fill-blue-600"
         viewBox="0 0 100 101"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -40,16 +40,14 @@ function Spinner() {
 }
 
 function entriesFromClassData(classes) {
-  const entries = []
-  Object.values(classes).forEach(
-    (e) => Object.entries(e["Automne 2023"])
-      .forEach(([k, v]) => {
-        if (v) {
-          entries.push(e.short_name + ' ' + k);
-        }
-      }));
-
-  console.log(entries)
+  const entries = [];
+  Object.values(classes).forEach((e) =>
+    Object.entries(e['Automne 2023']).forEach(([k, v]) => {
+      if (v) {
+        entries.push(e.short_name + ' ' + k);
+      }
+    }),
+  );
 
   return entries;
 }
@@ -58,68 +56,53 @@ function calendarURL(entries) {
   const base_url = '/api/get_calendar';
 
   const params = new URLSearchParams();
-  params.set("entries", entries)
+  params.set('entries', entries);
 
   const url = `${base_url}?${params.toString()}`;
   return url;
 }
 
-function searchFromLecture(lecture) {
-  return [];
-}
-
-function searchFromTP(tp) {
-  return [];
-}
-
-async function searchFromURL(course) {
-  await fetch(`/api/search/url?`);
-  return [];
-}
-
-async function searchFromNothing(search) {
-  const res = await fetch(`/api/search?term=${search}`);
-  return await res.json();
-}
-
 function Search({ onSelect }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState();
   const [results, setResults] = useState([]);
 
-  function handleSearch(search) {
+  async function searchFromCourse(course) {
+    const res = await fetch(`/api/get_class_data?class_name=${course}`);
+    if (res.ok) return await res.json();
+    return false;
+  }
+
+  async function searchFromNothing(search) {
+    const res = await fetch(`/api/search?term=${search}`);
+    if (res.ok) return await res.json();
+    return false;
+  }
+
+  async function handleSearch(search) {
     setIsLoading(true);
-    console.log('handle search');
-    if (search == '') {
-      setResults([]);
-      return;
-    }
 
     let match;
-    if ((match = search.match(TP_REGEX))) {
-      const [, subject, number, group] = match;
-      console.log('matched a tp', match);
-      setResults(searchFromTP({ subject, number, group }));
-      return;
+    if (search.trim() == '') {
+      console.log('empty search');
+      setResults([]);
+    } else if ((match = search.match(COURSE_REGEX))) {
+      console.log('matched course');
+      const data = await searchFromCourse(match[0]);
+      if (data) {
+        setResults(data);
+      } else {
+        setError('error');
+      }
+    } else {
+      console.log('no pattern matched');
+      const data = await searchFromNothing(search);
+      if (data) {
+        setResults(data);
+      } else {
+        setError(error);
+      }
     }
-
-    if ((match = search.match(LECTURE_REGEX))) {
-      const [, subject, number, group] = match;
-      console.log('matched a lecture', match);
-      setResults(searchFromLecture({ subject, number, group }));
-      return;
-    }
-
-    if ((match = search.match(UDEM_COURSE_URL_REGEX))) {
-      const [url, course] = match;
-      console.log('matched a url', url, course);
-      setResults(searchFromURL(course));
-      return;
-    }
-
-    console.log('no pattern matched');
-    searchFromNothing(search).then((data) => {
-      setResults(data);
-    });
     setIsLoading(false);
   }
 
@@ -128,7 +111,7 @@ function Search({ onSelect }) {
       <div className="relative w-full">
         <div className="flex absolute inset-y-0 left-0 items-center pl-3 pointer-events-none">
           <svg
-            className="w-5 h-5 text-gray-500 dark:text-gray-400"
+            className="w-5 h-5 text-gray-500 "
             fill="currentColor"
             viewBox="0 0 20 20"
             xmlns="http://www.w3.org/2000/svg"
@@ -142,8 +125,11 @@ function Search({ onSelect }) {
         </div>
         <input
           type="text"
-          id="simple-search"
-          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+          className="bg-gray-50 
+          border 
+          border-gray-300 
+          text-gray-900 
+          text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-10 p-2.5"
           placeholder="Recherche"
           required
           onInput={debounce((e) => {
@@ -153,31 +139,30 @@ function Search({ onSelect }) {
       </div>
 
       <div
-        className={`w-full my-3 z-10 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600 ${results.length ? '' : 'hidden'
-          }`}
+        className={`w-full my-3 z-10 bg-white divide-y divide-gray-100 rounded-lg shadow ${results.length ? '' : 'hidden'}`}
       >
         <ul
-          className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
+          className="p-3 space-y-1 text-sm text-gray-700"
           aria-labelledby="dropdownRadioHelperButton"
         >
-
-          {isLoading ?
-            <li>
-              <div className="flex p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+          <li>
+            {isLoading ? (
+              <div className="flex p-2 rounded hover:bg-gray-100">
                 <div className="ml-2 text-sm">
                   <Spinner />
-                  aaaaaaaaaa
                 </div>
               </div>
-            </li>
-            : ''}
+            ) : (
+              ''
+            )}
+          </li>
           {results.map((e, i) => (
             <li key={`search-result-${i}`}>
-              <div className="flex p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+              <div className="flex p-2 rounded hover:bg-gray-100">
                 <div className="ml-2 text-sm">
                   <label
                     htmlFor="helper-radio-4"
-                    className="font-medium text-gray-900 dark:text-gray-300"
+                    className="font-medium text-gray-900 "
                   >
                     <div>
                       {e}
@@ -190,10 +175,7 @@ function Search({ onSelect }) {
                         +
                       </button>
                     </div>
-                    <p
-                      id="helper-radio-text-4"
-                      className="text-xs font-normal text-gray-500 dark:text-gray-300"
-                    >
+                    <p className="text-xs font-normal text-gray-500 ">
                       Some helpful instruction goes over here.
                     </p>
                   </label>
@@ -209,7 +191,10 @@ function Search({ onSelect }) {
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
-  const [classes, setClasses] = useQueryParam('classes', withDefault(JsonParam, {}));
+  const [classes, setClasses] = useQueryParam(
+    'classes',
+    withDefault(JsonParam, {}),
+  );
 
   const [calUrl, setCalUrl] = useState(calendarURL(classes));
 
@@ -222,8 +207,9 @@ export default function Home() {
   function toggleEntry(className, groupKey) {
     setClasses((classes) => {
       const newClasses = { ...classes };
-      newClasses[className]["Automne 2023"][groupKey] = !classes[className]["Automne 2023"][groupKey];
-      console.log(newClasses)
+      newClasses[className]['Automne 2023'][groupKey] =
+        !classes[className]['Automne 2023'][groupKey];
+      console.log(newClasses);
       return newClasses;
     });
   }
@@ -232,25 +218,32 @@ export default function Home() {
     setIsLoading(true);
     const res = await fetch(`/api/get_class_data?class_name=${newClass}`);
     const data = await res.json();
-    data["Automne 2023"] = Object.fromEntries(data["Automne 2023"].map(k => [k, false]));
+    data['Automne 2023'] = Object.fromEntries(
+      data['Automne 2023'].map((k) => [k, false]),
+    );
 
     setClasses((classes) => ({ ...classes, [newClass]: data }));
     setIsLoading(false);
   }
 
-
   return (
     <div className={styles.container}>
       <Head>
         <title>Calendier udem</title>
-        <meta name="description" content="" />
-        <link rel="icon" href="/favicon.ico" />
+        <meta
+          name="description"
+          content=""
+        />
+        <link
+          rel="icon"
+          href="/favicon.ico"
+        />
       </Head>
       <main className={styles.main}>
         <h1 className={styles.title}>Calendrier UDEM</h1>
 
         <div className="mt-4 max-w-2xl mx-auto">
-          <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-400">
+          <label className="block mb-2 text-sm font-medium text-gray-900 ">
             1. Ajouter les sigles des cours | [PHY 1620] [MAT 2050]
           </label>
           <Search
@@ -261,7 +254,7 @@ export default function Home() {
         </div>
 
         {isLoading ? <Spinner /> : ''}
-        <h3 className="block my-2 text-sm font-medium text-gray-900 dark:text-gray-400">
+        <h3 className="block my-2 text-sm font-medium text-gray-900 ">
           2. Choisisser les groupes theoriques et pratiques
         </h3>
         <div className="mt-4 px-4 sm:px-8 max-w-5xl m-auto">
@@ -278,20 +271,31 @@ export default function Home() {
                   {classData.long_name}
                 </span>
 
-                <div className="inline-flex rounded-md shadow-sm" role="group">
-                  {Object.entries(classData['Automne 2023']).map(([groupKey, isSelected], i) => (
-                    <label className="relative inline-flex items-center my-1 mx-1 cursor-pointer"
-                      key={`groupButton_${i}`}
-                    >
-                      <input type="checkbox" onChange={() => { toggleEntry(classData.short_name, groupKey) }}
-                        checked={isSelected} className="sr-only peer" />
-                      <div
-                        className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                      <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                        {groupKey}
-                      </span>
-                    </label>
-                  ))}
+                <div
+                  className="inline-flex rounded-md shadow-sm"
+                  role="group"
+                >
+                  {Object.entries(classData['Automne 2023']).map(
+                    ([groupKey, isSelected], i) => (
+                      <label
+                        className="relative inline-flex items-center my-1 mx-1 cursor-pointer"
+                        key={`groupButton_${i}`}
+                      >
+                        <input
+                          type="checkbox"
+                          onChange={() => {
+                            toggleEntry(classData.short_name, groupKey);
+                          }}
+                          checked={isSelected}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span className="ml-3 text-sm font-medium text-gray-900 ">
+                          {groupKey}
+                        </span>
+                      </label>
+                    ),
+                  )}
                 </div>
 
                 <button
@@ -318,40 +322,38 @@ export default function Home() {
         </a>
 
         <a
-          className="mt-2 text-sm font-medium text-blue-600 hover:underline dark:text-blue-500"
+          className="mt-2 text-sm font-medium text-blue-600 hover:underline "
           href="https://support.google.com/calendar/answer/37118?hl=en&co=GENIE.Platform%3DDesktop"
         >
           Comment utiliser le .ics?
         </a>
-      </main >
+      </main>
 
-      {
-        entries.length != 0 && (
-          <FullCalendar
-            plugins={[timeGridPlugin, iCalendarPlugin]}
-            initialView="timeGridWeek"
-            locales={frLocale}
-            locale="fr"
-            weekends={false}
-            initialDate={initialDate}
-            slotMinTime={'08:00:00'}
-            allDaySlot={false}
-            headerToolbar={{
-              start: 'title',
-              center: '',
-              end: 'prev,next',
-            }}
-            contentHeight={400}
-            events={{
-              url: calUrl,
-              format: 'ics',
-            }}
-          />
-        )
-      }
+      {entries.length != 0 && (
+        <FullCalendar
+          plugins={[timeGridPlugin, iCalendarPlugin]}
+          initialView="timeGridWeek"
+          locales={frLocale}
+          locale="fr"
+          weekends={false}
+          initialDate={initialDate}
+          slotMinTime={'08:00:00'}
+          allDaySlot={false}
+          headerToolbar={{
+            start: 'title',
+            center: '',
+            end: 'prev,next',
+          }}
+          contentHeight={400}
+          events={{
+            url: calUrl,
+            format: 'ics',
+          }}
+        />
+      )}
 
-      < Footer />
-    </div >
+      <Footer />
+    </div>
   );
 }
 
@@ -360,7 +362,7 @@ function Footer() {
     <div className="max-w-2xl mx-auto">
       <footer className="p-4 bg-white sm:p-6 ">
         <div className="sm:flex sm:items-center sm:justify-between">
-          <span className="text-sm text-gray-500 sm:text-center dark:text-gray-400">
+          <span className="text-sm text-gray-500 sm:text-center ">
             © 2023 Abderahmane Bouziane
           </span>
           <div className="flex mt-4 space-x-6 sm:justify-center sm:mt-0">

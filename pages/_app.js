@@ -1,8 +1,8 @@
-import "../styles/globals.css";
+import '../styles/globals.css';
 
-import React from "react";
-import { NextAdapter } from "next-query-params";
-import { QueryParamProvider } from "use-query-params";
+import React from 'react';
+import { NextAdapter } from 'next-query-params';
+import { QueryParamProvider } from 'use-query-params';
 
 function MyApp({ Component, pageProps }) {
   return (
