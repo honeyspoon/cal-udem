@@ -2,6 +2,7 @@ import { get_schedule, get_classes } from "../../schedule.js";
 
 export default async function handler(req, res) {
   const { term } = req.query;
+
   try {
     const result = await get_classes()
     const classes = result.Contents.map(e => e.Key.split('.')[0])

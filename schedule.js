@@ -43,9 +43,8 @@ function parse_datetime(start_time_str, end_time_str, start_date_str, end_date_s
 }
 
 function parse_class_name(class_name) {
-  let [name, section] = class_name.split("-");
+  let [name, section] = class_name.split(" ");
   name = name.toLowerCase();
-  name = name.replace(" ", "-");
 
   return [name, section];
 }
@@ -54,8 +53,8 @@ function class_url(class_name) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
 }
 
-// const THRESH_S = 60 * 60 * 24 * 7; // a week
-const THRESH_S = 5;
+const THRESH_S = 60 * 60 * 24 * 7; // a week
+// const THRESH_S = 5;
 
 export async function get_classes() {
   var params = {

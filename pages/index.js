@@ -1,35 +1,68 @@
-import Head from "next/head";
+import Head from 'next/head';
 
 import debounce from 'lodash.debounce';
-import styles from "../styles/Home.module.css";
-import {
-  useQueryParam,
-  ArrayParam,
-  withDefault,
-} from "use-query-params";
+import styles from '../styles/Home.module.css';
+import { useQueryParam, JsonParam, withDefault } from 'use-query-params';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 
-import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import iCalendarPlugin from "@fullcalendar/icalendar";
-import frLocale from "@fullcalendar/core/locales/fr";
-import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from "../patterns";
-import Image from "next/image";
+import FullCalendar from '@fullcalendar/react';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import iCalendarPlugin from '@fullcalendar/icalendar';
+import frLocale from '@fullcalendar/core/locales/fr';
+import { LECTURE_REGEX, UDEM_COURSE_URL_REGEX, TP_REGEX } from '../patterns';
+import Image from 'next/image';
 
-const initialDate = "2023-09-04";
+const initialDate = '2023-09-04';
 
+function Spinner() {
+  return (
+    <div role="status">
+      <svg
+        aria-hidden="true"
+        className="w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
+        viewBox="0 0 100 101"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+          fill="currentColor"
+        />
+        <path
+          d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+          fill="currentFill"
+        />
+      </svg>
+      <span className="sr-only">Loading...</span>
+    </div>
+  );
+}
 
-function calendarURL(classes) {
-  const base_url = "/api/get_calendar";
+function entriesFromClassData(classes) {
+  const entries = []
+  Object.values(classes).forEach(
+    (e) => Object.entries(e["Automne 2023"])
+      .forEach(([k, v]) => {
+        if (v) {
+          entries.push(e.short_name + ' ' + k);
+        }
+      }));
+
+  console.log(entries)
+
+  return entries;
+}
+
+function calendarURL(entries) {
+  const base_url = '/api/get_calendar';
 
   const params = new URLSearchParams();
-  params.set("classes", classes);
+  params.set("entries", entries)
 
   const url = `${base_url}?${params.toString()}`;
   return url;
 }
-
 
 function searchFromLecture(lecture) {
   return [];
@@ -40,51 +73,54 @@ function searchFromTP(tp) {
 }
 
 async function searchFromURL(course) {
-  await fetch(`/api/search/url?`)
+  await fetch(`/api/search/url?`);
   return [];
 }
 
 async function searchFromNothing(search) {
-  const res = await fetch(`/api/search?term=${search}`)
+  const res = await fetch(`/api/search?term=${search}`);
   return await res.json();
 }
 
 function Search({ onSelect }) {
+  const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState([]);
 
   function handleSearch(search) {
-    console.log('handle search')
+    setIsLoading(true);
+    console.log('handle search');
     if (search == '') {
       setResults([]);
-      return
+      return;
     }
 
     let match;
-    if (match = search.match(TP_REGEX)) {
-      const [_, subject, number, group] = match;
-      console.log("matched a tp", match)
-      setResults(searchFromTP({ subject, number, group }))
-      return
-    }
-
-    if (match = search.match(LECTURE_REGEX)) {
-      const [_, subject, number, group] = match;
-      console.log("matched a lecture", match)
-      setResults(searchFromLecture({ subject, number, group }))
+    if ((match = search.match(TP_REGEX))) {
+      const [, subject, number, group] = match;
+      console.log('matched a tp', match);
+      setResults(searchFromTP({ subject, number, group }));
       return;
     }
 
-    if (match = search.match(UDEM_COURSE_URL_REGEX)) {
+    if ((match = search.match(LECTURE_REGEX))) {
+      const [, subject, number, group] = match;
+      console.log('matched a lecture', match);
+      setResults(searchFromLecture({ subject, number, group }));
+      return;
+    }
+
+    if ((match = search.match(UDEM_COURSE_URL_REGEX))) {
       const [url, course] = match;
-      console.log("matched a url", url, course)
-      setResults(searchFromURL(course))
+      console.log('matched a url', url, course);
+      setResults(searchFromURL(course));
       return;
     }
 
-    console.log('no pattern matched')
+    console.log('no pattern matched');
     searchFromNothing(search).then((data) => {
-      setResults(data)
-    })
+      setResults(data);
+    });
+    setIsLoading(false);
   }
 
   return (
@@ -110,56 +146,98 @@ function Search({ onSelect }) {
           className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
           placeholder="Recherche"
           required
-          onInput={debounce((e) => { handleSearch(e.target.value) }, 1000)}
-          onKeyUp={(e) => {
-            if (e.key == "Enter") {
-              onSelect(e.target.value);
-            }
-          }}
+          onInput={debounce((e) => {
+            handleSearch(e.target.value);
+          }, 1000)}
         />
       </div>
 
-      <div className={`w-full my-3 z-10 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600 ${results.length ? '' : 'hidden'}`}>
-        <ul className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownRadioHelperButton">
-          {results.map((e, i) =>
+      <div
+        className={`w-full my-3 z-10 bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600 ${results.length ? '' : 'hidden'
+          }`}
+      >
+        <ul
+          className="p-3 space-y-1 text-sm text-gray-700 dark:text-gray-200"
+          aria-labelledby="dropdownRadioHelperButton"
+        >
+
+          {isLoading ?
+            <li>
+              <div className="flex p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                <div className="ml-2 text-sm">
+                  <Spinner />
+                  aaaaaaaaaa
+                </div>
+              </div>
+            </li>
+            : ''}
+          {results.map((e, i) => (
             <li key={`search-result-${i}`}>
               <div className="flex p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
                 <div className="ml-2 text-sm">
-                  <label htmlFor="helper-radio-4" className="font-medium text-gray-900 dark:text-gray-300">
-
-                    <div>{e}
+                  <label
+                    htmlFor="helper-radio-4"
+                    className="font-medium text-gray-900 dark:text-gray-300"
+                  >
+                    <div>
+                      {e}
                       <button
                         className="mr-0 ml-3 bg-green-500 hover:bg-green-700 text-white font-bold py-0 px-2 border border-green-500 rounded-full"
                         onClick={() => {
-                          onSelect(e)
+                          onSelect(e);
                         }}
                       >
                         +
                       </button>
                     </div>
-                    <p id="helper-radio-text-4" className="text-xs font-normal text-gray-500 dark:text-gray-300">Some helpful instruction goes over here.</p>
+                    <p
+                      id="helper-radio-text-4"
+                      className="text-xs font-normal text-gray-500 dark:text-gray-300"
+                    >
+                      Some helpful instruction goes over here.
+                    </p>
                   </label>
                 </div>
               </div>
             </li>
-          )}
+          ))}
         </ul>
       </div>
     </>
-  )
+  );
 }
 
 export default function Home() {
-  const [classes, setClasses] = useQueryParam(
-    "classes",
-    withDefault(ArrayParam, [])
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [classes, setClasses] = useQueryParam('classes', withDefault(JsonParam, {}));
 
   const [calUrl, setCalUrl] = useState(calendarURL(classes));
 
+  const entries = entriesFromClassData(classes);
+
   useEffect(() => {
-    setCalUrl(calendarURL(classes));
-  }, [classes]);
+    setCalUrl(calendarURL(entries));
+  }, [entries]);
+
+  function toggleEntry(className, groupKey) {
+    setClasses((classes) => {
+      const newClasses = { ...classes };
+      newClasses[className]["Automne 2023"][groupKey] = !classes[className]["Automne 2023"][groupKey];
+      console.log(newClasses)
+      return newClasses;
+    });
+  }
+
+  async function addClass(newClass) {
+    setIsLoading(true);
+    const res = await fetch(`/api/get_class_data?class_name=${newClass}`);
+    const data = await res.json();
+    data["Automne 2023"] = Object.fromEntries(data["Automne 2023"].map(k => [k, false]));
+
+    setClasses((classes) => ({ ...classes, [newClass]: data }));
+    setIsLoading(false);
+  }
+
 
   return (
     <div className={styles.container}>
@@ -173,25 +251,54 @@ export default function Home() {
 
         <div className="mt-4 max-w-2xl mx-auto">
           <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-400">
-            Ajouter des cours tels qu&lsquo;indiqué sur le centre etudiant. Ex:
-            [PHY 1620-A1] [MAT 2050-A]
+            1. Ajouter les sigles des cours | [PHY 1620] [MAT 2050]
           </label>
-          <Search onSelect={(e) => { console.log(e) }} />
+          <Search
+            onSelect={(e) => {
+              addClass(e);
+            }}
+          />
         </div>
 
+        {isLoading ? <Spinner /> : ''}
+        <h3 className="block my-2 text-sm font-medium text-gray-900 dark:text-gray-400">
+          2. Choisisser les groupes theoriques et pratiques
+        </h3>
         <div className="mt-4 px-4 sm:px-8 max-w-5xl m-auto">
           <ul className="border border-gray-200 rounded overflow-hidden shadow-md">
-            {Array.from(classes).map((e, i) => (
+            {Object.values(classes).map((classData, i) => (
               <li
                 key={`li-${i}`}
                 className=" flex items-center  px-4 py-1 bg-white hover:bg-sky-100 hover:text-sky-900 border-b last:border-none border-gray-200 transition-all duration-300 ease-in-out"
               >
-                <span className="flex-1 text-xs flex-shrink-0">{e}</span>
+                <span className="flex-1 text-xs flex-shrink-0 font-bold uppercase">
+                  {classData.short_name}
+                </span>
+                <span className="flex-1 text-xs flex-shrink-0">
+                  {classData.long_name}
+                </span>
+
+                <div className="inline-flex rounded-md shadow-sm" role="group">
+                  {Object.entries(classData['Automne 2023']).map(([groupKey, isSelected], i) => (
+                    <label className="relative inline-flex items-center my-1 mx-1 cursor-pointer"
+                      key={`groupButton_${i}`}
+                    >
+                      <input type="checkbox" onChange={() => { toggleEntry(classData.short_name, groupKey) }}
+                        checked={isSelected} className="sr-only peer" />
+                      <div
+                        className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                        {groupKey}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
                 <button
                   className="mr-0 ml-3 bg-red-500 hover:bg-red-700 text-white font-bold py-0 px-2 border border-red-500 rounded-full"
                   onClick={() => {
-                    const s = new Set(classes);
-                    s.delete(e);
+                    const s = JSON.parse(JSON.stringify(classes));
+                    s[classData.short_name] = null;
                     setClasses(Array.from(s));
                   }}
                 >
@@ -204,10 +311,10 @@ export default function Home() {
 
         <a
           className="mt-5 px-4 py-1 text-sm hover:text-purple-600 hover:bg-white font-semibold rounded border border-purple-200 text-white bg-purple-600 border-transparent hover:border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
-          href={calendarURL(classes)}
+          href={calUrl}
           download="calendar.ics"
         >
-          Exporter en .ics
+          3. Exporter en .ics
         </a>
 
         <a
@@ -219,7 +326,7 @@ export default function Home() {
       </main >
 
       {
-        classes.length > 0 && (
+        entries.length != 0 && (
           <FullCalendar
             plugins={[timeGridPlugin, iCalendarPlugin]}
             initialView="timeGridWeek"
@@ -227,17 +334,17 @@ export default function Home() {
             locale="fr"
             weekends={false}
             initialDate={initialDate}
-            slotMinTime={"08:00:00"}
+            slotMinTime={'08:00:00'}
             allDaySlot={false}
             headerToolbar={{
-              start: "title",
-              center: "",
-              end: "prev,next",
+              start: 'title',
+              center: '',
+              end: 'prev,next',
             }}
             contentHeight={400}
             events={{
               url: calUrl,
-              format: "ics",
+              format: 'ics',
             }}
           />
         )
@@ -257,10 +364,31 @@ function Footer() {
             © 2023 Abderahmane Bouziane
           </span>
           <div className="flex mt-4 space-x-6 sm:justify-center sm:mt-0">
-            <form action="https://www.paypal.com/donate" method="post" target="_top">
-              <input type="hidden" name="hosted_button_id" value="K7SBBRXE3W3NA" />
-              <input type="image" src="https://www.paypalobjects.com/fr_CA/i/btn/btn_donate_SM.gif" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Bouton Faire un don avec PayPal" />
-              <img alt="" border="0" src="https://www.paypal.com/fr_CA/i/scr/pixel.gif" width="1" height="1" />
+            <form
+              action="https://www.paypal.com/donate"
+              method="post"
+              target="_top"
+            >
+              <input
+                type="hidden"
+                name="hosted_button_id"
+                value="K7SBBRXE3W3NA"
+              />
+              <input
+                type="image"
+                src="https://www.paypalobjects.com/fr_CA/i/btn/btn_donate_SM.gif"
+                border="0"
+                name="submit"
+                title="PayPal - The safer, easier way to pay online!"
+                alt="Bouton Faire un don avec PayPal"
+              />
+              <Image
+                alt=""
+                border="0"
+                src="https://www.paypal.com/fr_CA/i/scr/pixel.gif"
+                width="1"
+                height="1"
+              />
             </form>
           </div>
         </div>
