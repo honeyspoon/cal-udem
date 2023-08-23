@@ -11,6 +11,10 @@ const cheerio = require("cheerio");
 
 import ical from "ical-generator";
 
+function get_day_number(day_str) {
+  return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
+}
+
 function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
   return zonedTimeToUtc(
@@ -74,20 +78,21 @@ async function scrape_udem(class_name) {
 
     $("table", semester).each((i, t) => {
       const section = sections[i];
-      class_data.groups.push(section);
 
       const rows = $(t)
         .find('tbody')
         .find("tr")
         .toArray();
 
-      function get_day_number(day_str) {
-        return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
-      }
+      let bad = false;
 
       for (let row of rows) {
         const [dayCell, hoursCell, datesCell] = $(row).find('td').toArray();
         const day = $(dayCell).find('.jour_long').text().trim()
+        if (!day) {
+          bad = true;
+          break;
+        }
         const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
         const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
         const [start_datetime, end_datetime, end_date] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
@@ -108,35 +113,36 @@ async function scrape_udem(class_name) {
           repeatCount
         });
       }
+
+      if (!bad) {
+        class_data.groups.push(section);
+      }
     });
 
     return [class_data, events];
   }
 }
 
-export async function get_schedule(short_name, events = true) {
-  try {
-    const class_data = await prisma.course.findUnique({ where: { short_name } });
-    if (events) {
-      class_data.events = await prisma.event.findMany({
+export async function get_schedule(short_name, withEvents = true) {
+  const db_class_data = await prisma.course.findUnique({ where: { short_name } });
+  if (db_class_data) {
+    if (withEvents) {
+      db_class_data.events = await prisma.event.findMany({
         where: { courseShort_name: short_name }
       })
     }
-    return class_data
-  } catch (err) {
-    const [class_data, events] = await scrape_udem(short_name)
 
-    try {
-      return await prisma.course.upsert({
-        where: { short_name },
-        update: {},
-        create: { ...class_data, events: { create: events } },
-        include: { events }
-      });
-    } catch (error) {
-      console.error(error)
-    }
+    return db_class_data
   }
+
+  const [class_data, events] = await scrape_udem(short_name)
+
+  return await prisma.course.upsert({
+    where: { short_name },
+    update: {},
+    create: { ...class_data, events: { create: events } },
+    include: { events: withEvents }
+  });
 }
 
 export async function generate(classes) {
