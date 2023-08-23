@@ -1,23 +1,11 @@
 import fetch from "node-fetch";
-import S3 from "aws-sdk/clients/s3.js";
+
+import { prisma } from './db';
 
 require("dotenv").config();
 const { zonedTimeToUtc } = require("date-fns-tz");
 
-const accountid = process.env.CLOUDFLARE_ACCOUNT_ID;
-const access_key_id = process.env.CLOUDFLARE_ACCESS_KEY_ID;
-const access_key_secret = process.env.CLOUDFLARE_ACCESS_KEY_SECRET;
-
-const s3 = new S3({
-  endpoint: `https://${accountid}.r2.cloudflarestorage.com`,
-  accessKeyId: `${access_key_id}`,
-  secretAccessKey: `${access_key_secret}`,
-  signatureVersion: 'v4',
-});
-
 const SEMESTER = "Automne 2023"
-
-const Bucket = "schedules2";
 
 const cheerio = require("cheerio");
 
@@ -42,7 +30,7 @@ function parse_datetime(start_time_str, end_time_str, start_date_str, end_date_s
   return [parsed_start_datetime, parsed_end_datetime, parsed_end_date];
 }
 
-function parse_class_name(class_name) {
+export function parse_class_name(class_name) {
   let [name, section] = class_name.split(" ");
   name = name.toLowerCase();
 
@@ -53,145 +41,138 @@ function class_url(class_name) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
 }
 
-const THRESH_S = 60 * 60 * 24 * 7; // a week
-// const THRESH_S = 5;
-
-export async function get_classes() {
-  var params = {
-    Bucket,
-    Prefix: ''
-  };
-  return s3.listObjectsV2(params).promise();
+export async function get_classes(term = '') {
+  return await prisma.course.findMany({ where: { short_name: { contains: term } } })
 }
 
-export async function get_schedule(class_name) {
-  let schedule = {};
 
-  const key = `${class_name}.json`;
-  try {
-    // TODO: get rid of this
-    // I hate this control flow with exceptions
-    // gotta find a way to have the fs options return a tuple of a result and an error and match it
-    const current_ts = Math.floor(Date.now());
+async function scrape_udem(class_name) {
+  const class_data = { groups: [] };
+  const events = [];
 
-    const res = await s3
-      .getObject({
-        Key: key,
-        Bucket,
-      })
-      .promise();
+  class_data.url = class_url(class_name);
+  const res = await fetch(class_data.url);
+  const data = await res.text();
+  const $ = cheerio.load(data);
 
-    const m = (current_ts - res["LastModified"]) / 1000;
-    if (m > THRESH_S) {
-      throw new Error("old");
+  const long_name = $("h1.cours-titre").text();
+  const semesters = $("section.cours-horaires-trimestre");
+
+  class_data["long_name"] = long_name;
+  class_data["short_name"] = class_name;
+
+  for (let semester of semesters) {
+    const semester_name = $(semester).find("h3").text().trim();
+    if (semester_name != SEMESTER) {
+      continue
     }
 
-    const data = res["Body"];
-    schedule = JSON.parse(data);
-  } catch (err) {
-    const url = class_url(class_name);
-    const res = await fetch(url);
-    const data = await res.text();
-    const $ = cheerio.load(data);
+    const sections = $(semester)
+      .find("h4")
+      .toArray()
+      .map((e) => $(e).text().trim().split(" ").at(-1));
 
-    const long_name = $("h1.cours-titre").text();
-    const semesters = $("section.cours-horaires-trimestre");
+    $("table", semester).each((i, t) => {
+      const section = sections[i];
+      class_data.groups.push(section);
 
-    schedule["short_name"] = class_name;
-    schedule["long_name"] = long_name;
+      const rows = $(t)
+        .find('tbody')
+        .find("tr")
+        .toArray();
 
-    for (let semester of semesters) {
-      const semester_name = $(semester).find("h3").text().trim();
-      schedule[semester_name] = {};
+      function get_day_number(day_str) {
+        return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
+      }
 
-      const sections = $(semester)
-        .find("h4")
-        .toArray()
-        .map((e) => $(e).text().trim().split(" ").at(-1));
+      for (let row of rows) {
+        const [dayCell, hoursCell, datesCell] = $(row).find('td').toArray();
+        const day = $(dayCell).find('.jour_long').text().trim()
+        const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
+        const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
+        const [start_datetime, end_datetime, end_date] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
 
-      $("table", semester).each((i, t) => {
-        const section = sections[i];
-        schedule[semester_name][section] = [];
-        const rows = $(t)
-          .find('tbody')
-          .find("tr")
-          .toArray();
+        const start_date_date = new Date(start_datetime);
+        const day_offset_ms = (start_date_date.getDay() + 1 - get_day_number(day)) * 60 * 60 * 24 * 1000;
+        const true_start_datetime = start_datetime - day_offset_ms;
+        const true_end_datetime = end_datetime - day_offset_ms;
 
+        const repeatCount = Math.floor(
+          (end_date - true_start_datetime) / (1000 * 60 * 60 * 24 * 7) + 1
+        );
 
-        function get_day_number(day_str) {
-          return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
-        }
+        events.push({
+          group: section,
+          start: true_start_datetime / 1000,
+          end: true_end_datetime / 1000,
+          repeatCount
+        });
+      }
+    });
 
-        for (let row of rows) {
-          const [dayCell, hoursCell, datesCell] = $(row).find('td').toArray();
-          const day = $(dayCell).find('.jour_long').text().trim()
-          const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
-          const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
-          const [start_datetime, end_datetime, end_date] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
-
-          const start_date_date = new Date(start_datetime);
-          const day_offset_ms = (start_date_date.getDay() + 1 - get_day_number(day)) * 60 * 60 * 24 * 1000;
-          const true_start_datetime = start_datetime - day_offset_ms;
-          const true_end_datetime = end_datetime - day_offset_ms;
-
-          const count = Math.floor(
-            (end_date - true_start_datetime) / (1000 * 60 * 60 * 24 * 7) + 1
-          );
-
-          schedule[semester_name][section].push([true_start_datetime, true_end_datetime, count]);
-        }
-      });
-    }
-
-    await s3
-      .putObject({
-        Key: key,
-        Body: JSON.stringify(schedule),
-        Bucket,
-      })
-      .promise();
+    return [class_data, events];
   }
+}
 
-  return schedule;
+export async function get_schedule(short_name, events = true) {
+  try {
+    const class_data = await prisma.course.findUnique({ where: { short_name } });
+    if (events) {
+      class_data.events = await prisma.event.findMany({
+        where: { courseShort_name: short_name }
+      })
+    }
+    return class_data
+  } catch (err) {
+    const [class_data, events] = await scrape_udem(short_name)
+
+    try {
+      return await prisma.course.upsert({
+        where: { short_name },
+        update: {},
+        create: { ...class_data, events: { create: events } },
+        include: { events }
+      });
+    } catch (error) {
+      console.error(error)
+    }
+  }
 }
 
 export async function generate(classes) {
-  const schedules = await Promise.all(
-    classes.map(async (c) => {
-      const [class_name, section] = parse_class_name(c);
-      const schedule = await get_schedule(class_name);
-      return [
-        class_name,
-        section,
-        schedule["long_name"],
-        schedule[SEMESTER][section],
-      ];
-    })
-  );
-
   const calendar = ical({ name: "my calendar" });
   const tz = "America/New_York";
   calendar.timezone(tz);
 
-  for (const [class_name, target_section, long_name, schedule] of schedules) {
-    for (const [startTime, endTime, count] of schedule) {
-      const s = new Date(startTime).toLocaleString("en-US", {
-        timeZone: "America/New_York",
-      });
-      const e = new Date(endTime).toLocaleString("en-US", {
-        timeZone: "America/New_York",
-      });
-      const eventParams = {
-        start: s,
-        end: e,
-        summary: `${long_name} ${target_section}`,
-        url: class_url(class_name),
-        repeating: {
-          freq: "WEEKLY",
-          count,
-        },
-      };
-      calendar.createEvent(eventParams);
+  const classes_data = await Promise.all(
+    classes.map(async (c) => {
+      const [class_name, section] = parse_class_name(c);
+      const class_data = await get_schedule(class_name);
+
+      return class_data.events
+        .filter(event => event.group == section)
+        .map((event) => {
+          const s = new Date(event.start * 1000)
+          const e = new Date(event.end * 1000)
+
+          return {
+            start: s,
+            end: e,
+            summary: `${class_data['long_name']} ${section}`,
+            url: class_url(class_name),
+            repeating: {
+              freq: "WEEKLY",
+              count: event.repeatCount
+            },
+          };
+
+        })
+    })
+  );
+
+  for (let c of classes_data) {
+    for (let event of c) {
+      calendar.createEvent(event);
     }
   }
 

@@ -1,17 +1,13 @@
-import { get_schedule } from '../../schedule.js';
+import { get_schedule } from "../../schedule";
 
 export default async function handler(req, res) {
   const { class_name } = req.query;
 
   try {
-    console.log(result);
-    delete result['Hiver 2023'];
-
-    result['Automne 2023'] = Object.keys(result['Automne 2023']);
+    const result = await get_schedule(class_name, false)
     res.status(200).json(result);
-
-    const result = await get_schedule(class_name);
   } catch (e) {
+    console.error(e)
     res.status(404).json({ e });
   }
 }

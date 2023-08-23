@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "SENTRY_IGNORE_API_RESOLUTION_ERROR=1 next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -18,7 +18,7 @@
     "@fullcalendar/list": "^6.0.2",
     "@fullcalendar/react": "^6.0.2",
     "@fullcalendar/timegrid": "^6.0.2",
-    "@sentry/nextjs": "^7.28.1",
+    "@prisma/client": "^5.1.1",
     "@touch4it/ical-timezones": "^1.8.1",
     "aws-sdk": "^2.1290.0",
     "cheerio": "^1.0.0-rc.12",
@@ -36,7 +36,6 @@
     "query-string": "^8.1.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "sentry": "^0.1.2",
     "use-query-params": "^2.1.2"
   },
   "devDependencies": {

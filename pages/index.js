@@ -1,7 +1,6 @@
 import Head from 'next/head';
 
 import debounce from 'lodash.debounce';
-import styles from '../styles/Home.module.css';
 import { useQueryParam, JsonParam, withDefault } from 'use-query-params';
 
 import React, { useEffect, useState } from 'react';
@@ -42,7 +41,7 @@ function Spinner() {
 function entriesFromClassData(classes) {
   const entries = [];
   Object.values(classes).forEach((e) =>
-    Object.entries(e['Automne 2023']).forEach(([k, v]) => {
+    Object.entries(e.groups).forEach(([k, v]) => {
       if (v) {
         entries.push(e.short_name + ' ' + k);
       }
@@ -68,8 +67,9 @@ function Search({ onSelect }) {
   const [results, setResults] = useState([]);
 
   async function searchFromCourse(course) {
-    const res = await fetch(`/api/get_class_data?class_name=${course}`);
-    if (res.ok) return await res.json();
+    const fcourse = course.toLowerCase().replace(" ", "-");
+    const res = await fetch(`/api/get_class_data?class_name=${fcourse}`);
+    if (res.ok) return [await res.json()];
     return false;
   }
 
@@ -84,10 +84,8 @@ function Search({ onSelect }) {
 
     let match;
     if (search.trim() == '') {
-      console.log('empty search');
       setResults([]);
     } else if ((match = search.match(COURSE_REGEX))) {
-      console.log('matched course');
       const data = await searchFromCourse(match[0]);
       if (data) {
         setResults(data);
@@ -95,7 +93,6 @@ function Search({ onSelect }) {
         setError('error');
       }
     } else {
-      console.log('no pattern matched');
       const data = await searchFromNothing(search);
       if (data) {
         setResults(data);
@@ -170,21 +167,30 @@ function Search({ onSelect }) {
                 <div className="ml-2 text-sm">
                   <label
                     htmlFor="helper-radio-4"
-                    className="font-medium text-gray-900 "
                   >
-                    <div>
-                      {e}
-                      <button
-                        className="mr-0 ml-3 bg-green-500 hover:bg-green-700 text-white font-bold py-0 px-2 border border-green-500 rounded-full"
-                        onClick={() => {
-                          onSelect(e);
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>
+                    <span
+                      className="font-medium  text-gray-900 "
+                    >
+                      {e.short_name.toUpperCase().replace("-", " ")}
+                    </span>
+                    <button
+                      className="
+                        mr-0
+                        ml-2
+                        my-1
+                        bg-green-500
+                        hover:bg-green-700
+                        text-white font-bold 
+                        py-0 px-1.5
+                        border border-green-500 rounded-full"
+                      onClick={() => {
+                        onSelect(e);
+                      }}
+                    >
+                      +
+                    </button>
                     <p className="text-xs font-normal text-gray-500 ">
-                      Some helpful instruction goes over here.
+                      {e.long_name}
                     </p>
                   </label>
                 </div>
@@ -210,32 +216,37 @@ export default function Home() {
 
   useEffect(() => {
     setCalUrl(calendarURL(entries));
-  }, [entries]);
+  }, [entries.length]);
 
   function toggleEntry(className, groupKey) {
     setClasses((classes) => {
       const newClasses = { ...classes };
-      newClasses[className]['Automne 2023'][groupKey] =
-        !classes[className]['Automne 2023'][groupKey];
-      console.log(newClasses);
+      newClasses[className].groups[groupKey] =
+        !classes[className].groups[groupKey];
       return newClasses;
     });
   }
 
   async function addClass(newClass) {
-    setIsLoading(true);
-    const res = await fetch(`/api/get_class_data?class_name=${newClass}`);
-    const data = await res.json();
-    data['Automne 2023'] = Object.fromEntries(
-      data['Automne 2023'].map((k) => [k, false]),
+    const data = { ...newClass };
+    data.groups = Object.fromEntries(
+      data.groups.map((k) => [k, false]),
     );
 
-    setClasses((classes) => ({ ...classes, [newClass]: data }));
+    setClasses((classes) => ({ ...classes, [newClass.short_name]: data }));
     setIsLoading(false);
   }
 
+  function removeClass(className) {
+    setClasses(prev => {
+      const o = { ...prev };
+      delete o[className];
+      return o;
+    });
+  }
+
   return (
-    <div className={styles.container}>
+    <div className="px-2">
       <Head>
         <title>Calendier udem</title>
         <meta
@@ -247,8 +258,8 @@ export default function Home() {
           href="/favicon.ico"
         />
       </Head>
-      <main className={styles.main}>
-        <h1 className={styles.title}>Calendrier UDEM</h1>
+      <main className="py-10 flex flex-1 flex-col justify-center items-center">
+        <h1 className="text-center text-gray my-2 leading-5 text-5xl">Calendrier UDEM</h1>
 
         <div className="mt-4 max-w-2xl mx-auto">
           <label className="block mb-2 text-sm font-medium text-gray-900 ">
@@ -283,7 +294,7 @@ export default function Home() {
                   className="inline-flex rounded-md shadow-sm"
                   role="group"
                 >
-                  {Object.entries(classData['Automne 2023']).map(
+                  {Object.entries(classData.groups).map(
                     ([groupKey, isSelected], i) => (
                       <label
                         className="relative inline-flex items-center my-1 mx-1 cursor-pointer"
@@ -309,9 +320,7 @@ export default function Home() {
                 <button
                   className="mr-0 ml-3 bg-red-500 hover:bg-red-700 text-white font-bold py-0 px-2 border border-red-500 rounded-full"
                   onClick={() => {
-                    const s = JSON.parse(JSON.stringify(classes));
-                    s[classData.short_name] = null;
-                    setClasses(Array.from(s));
+                    removeClass(classData.short_name)
                   }}
                 >
                   -
