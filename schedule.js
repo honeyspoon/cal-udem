@@ -1,21 +1,15 @@
-import fetch from "node-fetch";
-
 import { prisma } from './db';
-
-require("dotenv").config();
-const { zonedTimeToUtc } = require("date-fns-tz");
+import { zonedTimeToUtc } from "date-fns-tz/zonedTimeToUtc";
+import cheerio from 'cheerio';
+import ical from "ical-generator";
 
 const SEMESTER = "Automne 2023"
 
-const cheerio = require("cheerio");
-
-import ical from "ical-generator";
-
-function get_day_number(day_str) {
+export function get_day_number(day_str) {
   return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
 }
 
-function parse_date(date_str, hour, min) {
+export function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
   return zonedTimeToUtc(
     `${year}-${month}-${day} ${hour}:${min}`,
@@ -144,6 +138,7 @@ export async function get_schedule(short_name, withEvents = true) {
     include: { events: withEvents }
   });
 }
+
 
 export async function generate(classes) {
   const calendar = ical({ name: "my calendar" });

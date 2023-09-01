@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "NODE_OPTIONS=--experimental-vm-modules ava"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.2.1",
@@ -39,10 +40,15 @@
     "use-query-params": "^2.1.2"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.22.10",
     "@next/eslint-plugin-next": "^13.1.1",
     "autoprefixer": "^10.4.13",
+    "ava": "^5.3.1",
+    "babel-jest": "^29.6.4",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.2",
     "eslint": "^8.31.0",
     "eslint-plugin-react": "^7.31.11",
+    "jest": "^29.6.4",
     "postcss": "^8.4.20",
     "tailwindcss": "^3.2.4"
   }
