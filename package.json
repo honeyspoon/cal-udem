@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "NODE_OPTIONS=--experimental-vm-modules ava"
+    "test": "NODE_OPTIONS=--experimental-vm-modules ava",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.2.1",
