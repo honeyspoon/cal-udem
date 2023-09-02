@@ -1,19 +1,17 @@
 import { prisma } from './db';
-import { zonedTimeToUtc } from "date-fns-tz/zonedTimeToUtc";
 import cheerio from 'cheerio';
 import ical from "ical-generator";
 
 const SEMESTER = "Automne 2023"
 
 export function get_day_number(day_str) {
-  return { "Lundi": 1, "Mardi": 2, "Mercredi": 4, "Jeudi": 5, "Vendredi": 5 }[day_str];
+  return { "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, "Vendredi": 5 }[day_str];
 }
 
 export function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
-  return zonedTimeToUtc(
+  return new Date(
     `${year}-${month}-${day} ${hour}:${min}`,
-    "America/New_York"
   ).getTime();
 }
 
@@ -42,7 +40,6 @@ function class_url(class_name) {
 export async function get_classes(term = '') {
   return await prisma.course.findMany({ where: { short_name: { contains: term } } })
 }
-
 
 async function scrape_udem(class_name) {
   const class_data = { groups: [] };
@@ -87,14 +84,18 @@ async function scrape_udem(class_name) {
           bad = true;
           break;
         }
+
         const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
         const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
         const [start_datetime, end_datetime, end_date] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
 
+
         const start_date_date = new Date(start_datetime);
-        const day_offset_ms = (start_date_date.getDay() + 1 - get_day_number(day)) * 60 * 60 * 24 * 1000;
-        const true_start_datetime = start_datetime - day_offset_ms;
-        const true_end_datetime = end_datetime - day_offset_ms;
+
+        const day_offset = get_day_number(day) - start_date_date.getDay();
+        const day_offset_ms = day_offset * 60 * 60 * 24 * 1000;
+        const true_start_datetime = start_datetime + day_offset_ms;
+        const true_end_datetime = end_datetime + day_offset_ms;
 
         const repeatCount = Math.floor(
           (end_date - true_start_datetime) / (1000 * 60 * 60 * 24 * 7) + 1
@@ -106,6 +107,7 @@ async function scrape_udem(class_name) {
           end: true_end_datetime / 1000,
           repeatCount
         });
+
       }
 
       if (!bad) {
@@ -118,25 +120,27 @@ async function scrape_udem(class_name) {
 }
 
 export async function get_schedule(short_name, withEvents = true) {
+  const key = short_name.toLowerCase()
   const db_class_data = await prisma.course.findUnique({ where: { short_name } });
+
   if (db_class_data) {
     if (withEvents) {
       db_class_data.events = await prisma.event.findMany({
-        where: { courseShort_name: short_name }
+        where: { courseShort_name: key }
       })
     }
 
     return db_class_data
   }
 
-  const [class_data, events] = await scrape_udem(short_name)
+  const [class_data, events] = await scrape_udem(key)
 
-  return await prisma.course.upsert({
-    where: { short_name },
-    update: {},
-    create: { ...class_data, events: { create: events } },
+  const res = await prisma.course.create({
+    data: { ...class_data, events: { create: events } },
     include: { events: withEvents }
   });
+
+  return res
 }
 
 
