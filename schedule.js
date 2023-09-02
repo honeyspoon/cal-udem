@@ -1,6 +1,8 @@
 import { prisma } from './db';
 import cheerio from 'cheerio';
 import ical from "ical-generator";
+import { getVtimezoneComponent } from '@touch4it/ical-timezones';
+
 
 const SEMESTER = "Automne 2023"
 
@@ -146,8 +148,10 @@ export async function get_schedule(short_name, withEvents = true) {
 
 export async function generate(classes) {
   const calendar = ical({ name: "my calendar" });
-  const tz = "America/New_York";
-  calendar.timezone(tz);
+  calendar.timezone({
+    name: 'America/New_York',
+    generator: getVtimezoneComponent
+  });
 
   const classes_data = await Promise.all(
     classes.map(async (c) => {
