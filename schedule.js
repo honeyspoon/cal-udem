@@ -73,46 +73,47 @@ async function scrape_udem(class_name) {
 
       for (let row of rows) {
         const [dayCell, hoursCell, datesCell] = $(row).find('td').toArray();
-        const day = $(dayCell).find('.jour_long').text().trim()
-        if (!day) {
-          bad = true;
-          break;
-        }
-
+        const days = $(dayCell).find('.jour_long').toArray().map(e => $(e).text().trim())
         const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
-
-        let [s_hour, , s_min] = start_time_str.split(" ");
-        let [e_hour, , e_min] = end_time_str.split(" ");
-
         const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
 
-        const start_datetime = parse_date(start_date_str, s_hour, s_min);
-        const end_datetime = parse_date(start_date_str, e_hour, e_min);
-        const end_date = parse_date(end_date_str, e_hour, e_min);
+        for (const day of days) {
+          if (!day) {
+            bad = true;
+            break;
+          }
 
-        const start_date_date = new Date(start_datetime * 1000);
+          let [s_hour, , s_min] = start_time_str.split(" ");
+          let [e_hour, , e_min] = end_time_str.split(" ");
 
-        const day_offset = get_day_number(day) - start_date_date.getUTCDay();
-        const day_offset_ms = day_offset * 60 * 60 * 24;
+          const start_datetime = parse_date(start_date_str, s_hour, s_min);
+          const end_datetime = parse_date(start_date_str, e_hour, e_min);
+          const end_date = parse_date(end_date_str, e_hour, e_min);
 
-        const true_start_datetime = start_datetime + day_offset_ms;
-        const true_end_datetime = end_datetime + day_offset_ms;
+          const start_date_date = new Date(start_datetime * 1000);
 
-        const repeatCount = Math.floor(
-          (end_date - true_start_datetime) / (60 * 60 * 24 * 7) + 1
-        );
+          const day_offset = get_day_number(day) - start_date_date.getUTCDay();
+          const day_offset_ms = day_offset * 60 * 60 * 24;
 
-        events.push({
-          group: section,
-          start: true_start_datetime,
-          end: true_end_datetime,
-          repeatCount
-        });
+          const true_start_datetime = start_datetime + day_offset_ms;
+          const true_end_datetime = end_datetime + day_offset_ms;
 
-        console.log('-----')
-        console.log(start_date_str, start_date_date)
-        console.log(day, start_date_date.getUTCDay(), day_offset)
-        console.log(start_time_str, start_datetime, true_start_datetime)
+          const repeatCount = Math.floor(
+            (end_date - true_start_datetime) / (60 * 60 * 24 * 7) + 1
+          );
+
+          events.push({
+            group: section,
+            start: true_start_datetime,
+            end: true_end_datetime,
+            repeatCount
+          });
+
+          console.log('-----')
+          console.log(start_date_str, start_date_date)
+          console.log(day, start_date_date.getUTCDay(), day_offset)
+          console.log(start_time_str, start_datetime, true_start_datetime)
+        }
       }
 
       if (!bad) {
@@ -166,9 +167,6 @@ export async function generate(classes) {
         .map((event) => {
           const s = new Date(event.start * 1000)
           const e = new Date(event.end * 1000)
-
-          console.log(event.start, s)
-          console.log(event.end, e)
 
           return {
             start: s,
