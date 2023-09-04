@@ -145,6 +145,9 @@ export async function get_schedule(short_name, withEvents = true) {
   return res
 }
 
+function convertTZ(date, tzString) {
+  return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", { timeZone: tzString }));
+}
 
 export async function generate(classes) {
   const calendar = ical({ name: "my calendar" });
@@ -161,8 +164,8 @@ export async function generate(classes) {
       return class_data.events
         .filter(event => event.group == section)
         .map((event) => {
-          const s = new Date(event.start * 1000)
-          const e = new Date(event.end * 1000)
+          const s = convertTZ(new Date(event.start * 1000), "America/New_York")
+          const e = convertTZ(new Date(event.end * 1000), "America/New_York")
 
           return {
             start: s,
