@@ -277,21 +277,21 @@ export default function Home() {
           2. Choisisser les groupes theoriques et pratiques
         </h3>
         <div className="mt-4 px-4 sm:px-8 max-w-5xl m-auto">
-          <ul className="border border-gray-200 rounded overflow-hidden shadow-md">
+          <table className="table-auto border border-gray-200 rounded overflow-hidden shadow-md">
             {Object.values(classes).map((classData, i) => (
-              <li
+              <tr
                 key={`li-${i}`}
-                className=" flex items-center  px-4 py-1 bg-white hover:bg-sky-100 hover:text-sky-900 border-b last:border-none border-gray-200 transition-all duration-300 ease-in-out"
+                className="px-4 py-1 bg-white hover:bg-sky-100 hover:text-sky-900 border-b last:border-none border-gray-200 transition-all duration-300 ease-in-out"
               >
-                <span className="flex-1 text-xs flex-shrink-0 font-bold uppercase">
+                <td className="text-xs font-bold uppercase">
                   {classData.short_name}
-                </span>
-                <span className="flex-1 text-xs flex-shrink-0">
+                </td>
+                <td className="text-xs text-left">
                   {classData.long_name}
-                </span>
+                </td>
 
-                <div
-                  className="inline-flex rounded-md shadow-sm"
+                <td
+                  className="rounded-md shadow-sm"
                   role="group"
                 >
                   {Object.entries(classData.groups).map(
@@ -315,19 +315,21 @@ export default function Home() {
                       </label>
                     ),
                   )}
-                </div>
+                </td>
 
-                <button
-                  className="mr-0 ml-3 bg-red-500 hover:bg-red-700 text-white font-bold py-0 px-2 border border-red-500 rounded-full"
-                  onClick={() => {
-                    removeClass(classData.short_name)
-                  }}
-                >
-                  -
-                </button>
-              </li>
+                <td>
+                  <button
+                    className="mr-0 ml-3 bg-red-500 hover:bg-red-700 text-white font-bold py-0 px-2 border border-red-500 rounded-full"
+                    onClick={() => {
+                      removeClass(classData.short_name)
+                    }}
+                  >
+                    -
+                  </button>
+                </td>
+              </tr>
             ))}
-          </ul>
+          </table>
         </div>
 
         <a
@@ -346,31 +348,33 @@ export default function Home() {
         </a>
       </main>
 
-      {entries.length != 0 && (
-        <FullCalendar
-          plugins={[timeGridPlugin, iCalendarPlugin]}
-          initialView="timeGridWeek"
-          locales={frLocale}
-          locale="fr"
-          weekends={false}
-          initialDate={initialDate}
-          slotMinTime={'08:00:00'}
-          allDaySlot={false}
-          headerToolbar={{
-            start: 'title',
-            center: '',
-            end: 'prev,next',
-          }}
-          contentHeight={400}
-          events={{
-            url: calUrl,
-            format: 'ics',
-          }}
-        />
-      )}
+      <div className="lg:w-4/5 w-full m-auto">
+        {entries.length != 0 && (
+          <FullCalendar
+            plugins={[timeGridPlugin, iCalendarPlugin]}
+            initialView="timeGridWeek"
+            locales={frLocale}
+            locale="fr"
+            weekends={false}
+            initialDate={initialDate}
+            slotMinTime={'08:00:00'}
+            allDaySlot={false}
+            headerToolbar={{
+              start: 'title',
+              center: '',
+              end: 'prev,next',
+            }}
+            contentHeight={600}
+            events={{
+              url: calUrl,
+              format: 'ics',
+            }}
+          />
+        )}
+      </div>
 
       <Footer />
-    </div>
+    </div >
   );
 }
 
