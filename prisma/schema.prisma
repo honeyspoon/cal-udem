@@ -16,7 +16,7 @@ model Event {
   start            Int
   end              Int
   repeatCount      Int
-  course           Course @relation(fields: [courseShort_name], references: [short_name])
+  course           Course @relation(fields: [courseShort_name], references: [short_name], onDelete: Cascade)
   group            String
   courseShort_name String
 }

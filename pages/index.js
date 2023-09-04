@@ -57,8 +57,7 @@ function calendarURL(entries) {
   const params = new URLSearchParams();
   params.set('entries', entries);
 
-  const url = `${base_url}?${params.toString()}`;
-  return url;
+  return `${base_url}?${params.toString()}`;
 }
 
 function Search({ onSelect }) {
@@ -210,12 +209,15 @@ export default function Home() {
     withDefault(JsonParam, {}),
   );
 
-  const [calUrl, setCalUrl] = useState(calendarURL(classes));
+  const [calUrl, setCalUrl] = useState(null);
 
   const entries = entriesFromClassData(classes);
 
   useEffect(() => {
-    setCalUrl(calendarURL(entries));
+    if (entries.length) {
+      console.log('calling api')
+      setCalUrl(calendarURL(entries));
+    }
   }, [entries.length]);
 
   function toggleEntry(className, groupKey) {
@@ -278,57 +280,59 @@ export default function Home() {
         </h3>
         <div className="mt-4 px-4 sm:px-8 max-w-5xl m-auto">
           <table className="table-auto border border-gray-200 rounded overflow-hidden shadow-md">
-            {Object.values(classes).map((classData, i) => (
-              <tr
-                key={`li-${i}`}
-                className="px-4 py-1 bg-white hover:bg-sky-100 hover:text-sky-900 border-b last:border-none border-gray-200 transition-all duration-300 ease-in-out"
-              >
-                <td className="text-xs font-bold uppercase">
-                  {classData.short_name}
-                </td>
-                <td className="text-xs text-left">
-                  {classData.long_name}
-                </td>
-
-                <td
-                  className="rounded-md shadow-sm"
-                  role="group"
+            <tbody>
+              {Object.values(classes).map((classData, i) => (
+                <tr
+                  key={`li-${i}`}
+                  className="px-4 py-1 bg-white hover:bg-sky-100 hover:text-sky-900 border-b last:border-none border-gray-200 transition-all duration-300 ease-in-out"
                 >
-                  {Object.entries(classData.groups).map(
-                    ([groupKey, isSelected], i) => (
-                      <label
-                        className="relative inline-flex items-center my-1 mx-1 cursor-pointer"
-                        key={`groupButton_${i}`}
-                      >
-                        <input
-                          type="checkbox"
-                          onChange={() => {
-                            toggleEntry(classData.short_name, groupKey);
-                          }}
-                          checked={isSelected}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                        <span className="ml-3 text-sm font-medium text-gray-900 ">
-                          {groupKey}
-                        </span>
-                      </label>
-                    ),
-                  )}
-                </td>
+                  <td className="text-xs font-bold uppercase">
+                    {classData.short_name}
+                  </td>
+                  <td className="text-xs text-left">
+                    {classData.long_name}
+                  </td>
 
-                <td>
-                  <button
-                    className="mr-0 ml-3 bg-red-500 hover:bg-red-700 text-white font-bold py-0 px-2 border border-red-500 rounded-full"
-                    onClick={() => {
-                      removeClass(classData.short_name)
-                    }}
+                  <td
+                    className="rounded-md shadow-sm"
+                    role="group"
                   >
-                    -
-                  </button>
-                </td>
-              </tr>
-            ))}
+                    {Object.entries(classData.groups).map(
+                      ([groupKey, isSelected], i) => (
+                        <label
+                          className="relative inline-flex items-center my-1 mx-1 cursor-pointer"
+                          key={`groupButton_${i}`}
+                        >
+                          <input
+                            type="checkbox"
+                            onChange={() => {
+                              toggleEntry(classData.short_name, groupKey);
+                            }}
+                            checked={isSelected}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                          <span className="ml-3 text-sm font-medium text-gray-900 ">
+                            {groupKey}
+                          </span>
+                        </label>
+                      ),
+                    )}
+                  </td>
+
+                  <td>
+                    <button
+                      className="mr-0 ml-3 bg-red-500 hover:bg-red-700 text-white font-bold py-0 px-2 border border-red-500 rounded-full"
+                      onClick={() => {
+                        removeClass(classData.short_name)
+                      }}
+                    >
+                      -
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
 
@@ -349,7 +353,7 @@ export default function Home() {
       </main>
 
       <div className="lg:w-4/5 w-full m-auto">
-        {entries.length != 0 && (
+        {calUrl && (
           <FullCalendar
             plugins={[timeGridPlugin, iCalendarPlugin]}
             initialView="timeGridWeek"

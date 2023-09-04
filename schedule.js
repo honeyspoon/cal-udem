@@ -1,8 +1,10 @@
 import { prisma } from './db';
 import cheerio from 'cheerio';
 import ical from "ical-generator";
-import { getVtimezoneComponent } from '@touch4it/ical-timezones';
+import AsyncLock from 'async-lock';
 
+
+const lock = new AsyncLock();
 
 const SEMESTER = "Automne 2023"
 
@@ -13,19 +15,8 @@ export function get_day_number(day_str) {
 export function parse_date(date_str, hour, min) {
   const [day, month, year] = date_str.split("/");
   return new Date(
-    `${year}-${month}-${day} ${hour}:${min}`,
+    `${year}-${month}-${day} ${hour}:${min} GMT-4`,
   ).getTime();
-}
-
-function parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str) {
-  let [s_hour, , s_min] = start_time_str.split(" ");
-  let [e_hour, , e_min] = end_time_str.split(" ");
-
-  const parsed_start_datetime = parse_date(start_date_str, s_hour, s_min);
-  const parsed_end_datetime = parse_date(start_date_str, e_hour, e_min);
-  const parsed_end_date = parse_date(end_date_str, e_hour, e_min);
-
-  return [parsed_start_datetime, parsed_end_datetime, parsed_end_date];
 }
 
 export function parse_class_name(class_name) {
@@ -88,14 +79,21 @@ async function scrape_udem(class_name) {
         }
 
         const [start_time_str, end_time_str] = $(hoursCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
-        const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
-        const [start_datetime, end_datetime, end_date] = parse_datetime(start_time_str, end_time_str, start_date_str, end_date_str)
 
+        let [s_hour, , s_min] = start_time_str.split(" ");
+        let [e_hour, , e_min] = end_time_str.split(" ");
+
+        const [start_date_str, end_date_str] = $(datesCell).find('span:not([class])').toArray().map(e => $(e).text().trim())
+
+        const start_datetime = parse_date(start_date_str, s_hour, s_min);
+        const end_datetime = parse_date(start_date_str, e_hour, e_min);
+        const end_date = parse_date(end_date_str, e_hour, e_min);
 
         const start_date_date = new Date(start_datetime);
 
-        const day_offset = get_day_number(day) - start_date_date.getDay();
+        const day_offset = get_day_number(day) - start_date_date.getUTCDay();
         const day_offset_ms = day_offset * 60 * 60 * 24 * 1000;
+
         const true_start_datetime = start_datetime + day_offset_ms;
         const true_end_datetime = end_datetime + day_offset_ms;
 
@@ -110,6 +108,10 @@ async function scrape_udem(class_name) {
           repeatCount
         });
 
+        console.log('-----')
+        console.log(start_date_str, start_date_date)
+        console.log(day, start_date_date.getUTCDay(), day_offset)
+        console.log(start_time_str, start_datetime, true_start_datetime)
       }
 
       if (!bad) {
@@ -123,39 +125,37 @@ async function scrape_udem(class_name) {
 
 export async function get_schedule(short_name, withEvents = true) {
   const key = short_name.toLowerCase()
-  const db_class_data = await prisma.course.findUnique({ where: { short_name } });
+  return await lock.acquire(key, async () => {
+    const db_class_data = await prisma.course.findUnique({ where: { short_name } });
+    console.log('---')
 
-  if (db_class_data) {
-    if (withEvents) {
-      db_class_data.events = await prisma.event.findMany({
-        where: { courseShort_name: key }
-      })
+    if (db_class_data) {
+      if (withEvents) {
+        db_class_data.events = await prisma.event.findMany({
+          where: { courseShort_name: key }
+        })
+      }
+
+      return db_class_data
     }
 
-    return db_class_data
-  }
+    const [class_data, events] = await scrape_udem(key)
 
-  const [class_data, events] = await scrape_udem(key)
+    // return events
+    const res = await prisma.course.create({
+      data: { ...class_data, events: { create: events } },
+      include: { events: withEvents }
+    });
 
-  const res = await prisma.course.create({
-    data: { ...class_data, events: { create: events } },
-    include: { events: withEvents }
+    return res
+
   });
-
-  return res
-}
-
-function convertTZ(date, tzString) {
-  return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", { timeZone: tzString }));
 }
 
 export async function generate(classes) {
   const calendar = ical({ name: "my calendar" });
-  calendar.timezone({
-    name: 'America/New_York',
-    generator: getVtimezoneComponent
-  });
 
+  const tzString = "America/New_York"
   const classes_data = await Promise.all(
     classes.map(async (c) => {
       const [class_name, section] = parse_class_name(c);
@@ -164,13 +164,16 @@ export async function generate(classes) {
       return class_data.events
         .filter(event => event.group == section)
         .map((event) => {
-          const s = convertTZ(new Date(event.start * 1000), "America/New_York")
-          const e = convertTZ(new Date(event.end * 1000), "America/New_York")
+          const s = new Date(event.start * 1000)//.toLocaleString("en-US", { timeZone: tzString });
+          const e = new Date(event.end * 1000)//.toLocaleString("en-US", { timeZone: tzString });
+
+          console.log(event.start, s)
+          console.log(event.end, e)
 
           return {
             start: s,
             end: e,
-            summary: `${class_data['long_name']} ${section}`,
+            summary: `${class_data['short_name'].toUpperCase()} | ${class_data['long_name']} - ${section}`,
             url: class_url(class_name),
             repeating: {
               freq: "WEEKLY",

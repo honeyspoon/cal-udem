@@ -22,6 +22,7 @@
     "@fullcalendar/timegrid": "^6.0.2",
     "@prisma/client": "^5.1.1",
     "@touch4it/ical-timezones": "^1.8.1",
+    "async-lock": "^1.4.0",
     "aws-sdk": "^2.1290.0",
     "cheerio": "^1.0.0-rc.12",
     "date-fns": "^2.29.3",

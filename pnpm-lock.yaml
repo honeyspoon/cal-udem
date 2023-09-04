@@ -38,6 +38,9 @@ dependencies:
   '@touch4it/ical-timezones':
     specifier: ^1.8.1
     version: 1.9.0
+  async-lock:
+    specifier: ^1.4.0
+    version: 1.4.0
   aws-sdk:
     specifier: ^2.1290.0
     version: 2.1446.0
@@ -2238,6 +2241,10 @@ packages:
 
   /ast-types-flow@0.0.7:
     resolution: {integrity: sha512-eBvWn1lvIApYMhzQMsu9ciLfkBY499mFZlNqG+/9WR7PVlroQw0vG30cOQQbaKz3sCEc44TAOu2ykzqXSNnwag==}
+    dev: false
+
+  /async-lock@1.4.0:
+    resolution: {integrity: sha512-coglx5yIWuetakm3/1dsX9hxCNox22h7+V80RQOu2XUUMidtArxKoZoOtHUPuR84SycKTXzgGzAUR5hJxujyJQ==}
     dev: false
 
   /asynciterator.prototype@1.0.0:
