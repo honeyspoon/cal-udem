@@ -2,7 +2,7 @@ import { prisma } from './db';
 import cheerio from 'cheerio';
 import ical from "ical-generator";
 import AsyncLock from 'async-lock';
-
+import { DateTime } from "luxon";
 
 const lock = new AsyncLock();
 
@@ -12,11 +12,12 @@ export function get_day_number(day_str) {
   return { "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, "Vendredi": 5 }[day_str];
 }
 
-export function parse_date(date_str, hour, min) {
+export function parse_date(date_str, hours, minutes) {
   const [day, month, year] = date_str.split("/");
-  return new Date(
-    `${year}-${month}-${day} ${hour}:${min} GMT-4`,
-  ).getTime();
+  return DateTime.fromObject({
+    year, month, day, hours, minutes
+  }, { zone: 'America/New_York' }
+  ).toUnixInteger();
 }
 
 export function parse_class_name(class_name) {
@@ -89,22 +90,22 @@ async function scrape_udem(class_name) {
         const end_datetime = parse_date(start_date_str, e_hour, e_min);
         const end_date = parse_date(end_date_str, e_hour, e_min);
 
-        const start_date_date = new Date(start_datetime);
+        const start_date_date = new Date(start_datetime * 1000);
 
         const day_offset = get_day_number(day) - start_date_date.getUTCDay();
-        const day_offset_ms = day_offset * 60 * 60 * 24 * 1000;
+        const day_offset_ms = day_offset * 60 * 60 * 24;
 
         const true_start_datetime = start_datetime + day_offset_ms;
         const true_end_datetime = end_datetime + day_offset_ms;
 
         const repeatCount = Math.floor(
-          (end_date - true_start_datetime) / (1000 * 60 * 60 * 24 * 7) + 1
+          (end_date - true_start_datetime) / (60 * 60 * 24 * 7) + 1
         );
 
         events.push({
           group: section,
-          start: true_start_datetime / 1000,
-          end: true_end_datetime / 1000,
+          start: true_start_datetime,
+          end: true_end_datetime,
           repeatCount
         });
 
@@ -127,7 +128,6 @@ export async function get_schedule(short_name, withEvents = true) {
   const key = short_name.toLowerCase()
   return await lock.acquire(key, async () => {
     const db_class_data = await prisma.course.findUnique({ where: { short_name } });
-    console.log('---')
 
     if (db_class_data) {
       if (withEvents) {
@@ -141,7 +141,7 @@ export async function get_schedule(short_name, withEvents = true) {
 
     const [class_data, events] = await scrape_udem(key)
 
-    // return events
+    // return { ...class_data, events }
     const res = await prisma.course.create({
       data: { ...class_data, events: { create: events } },
       include: { events: withEvents }
@@ -164,8 +164,8 @@ export async function generate(classes) {
       return class_data.events
         .filter(event => event.group == section)
         .map((event) => {
-          const s = new Date(event.start * 1000)//.toLocaleString("en-US", { timeZone: tzString });
-          const e = new Date(event.end * 1000)//.toLocaleString("en-US", { timeZone: tzString });
+          const s = new Date(event.start * 1000)
+          const e = new Date(event.end * 1000)
 
           console.log(event.start, s)
           console.log(event.end, e)
