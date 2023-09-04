@@ -12,7 +12,7 @@ import frLocale from '@fullcalendar/core/locales/fr';
 import { COURSE_REGEX } from '../patterns';
 import Image from 'next/image';
 
-const initialDate = '2023-09-04';
+const initialDate = '2023-09-11';
 
 function Spinner() {
   return (
