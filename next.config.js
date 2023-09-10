@@ -1,5 +1,3 @@
-/** @type {import('next').NextConfig} */
-
 const moduleExports = {
   reactStrictMode: true,
   images: {
