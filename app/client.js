@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { produce } from 'immer';
 import { motion } from "framer-motion"
+import { useRouter } from 'next/navigation'
 
 import {
   Input,
@@ -202,7 +203,14 @@ function Search({ onSelect }) {
   );
 }
 
+
+function classUrl(shortName) {
+  return `https://admission.umontreal.ca/cours-et-horaires/cours/${shortName}/`;
+}
+
 export function Client({ defaultClasses }) {
+  const router = useRouter()
+
   const [classes, setClasses] = useState(defaultClasses);
   const [calUrl, setCalUrl] = useState();
 
@@ -216,13 +224,20 @@ export function Client({ defaultClasses }) {
     }
   }, [entries.length]);
 
+  useEffect(() => {
+    const url = new URL(window.location)
+    url.searchParams.set('classes', JSON.stringify(classes))
+    router.replace(url.toString(), '', { shallow: true })
+  }, [classes])
+
   function setGroups(className, groups) {
     setClasses((classes) =>
       produce(classes, (draft) => {
         for (let group of Object.keys(draft[className].groups)) {
           draft[className].groups[group] = groups.includes(group);
         }
-      }),
+      })
+      ,
     );
   }
 
@@ -230,6 +245,18 @@ export function Client({ defaultClasses }) {
     setClasses((prev) => produce(prev, draft => {
       delete draft[className]
     }))
+  }
+
+  function addClass(newClass) {
+    setClasses((classes) =>
+      produce(classes, (draft) => {
+        const c = produce(newClass, (cDraft) => {
+          cDraft.groups = Object.fromEntries(cDraft.groups.map(g => [g, false]))
+          delete cDraft.url
+        })
+        draft[newClass.short_name] = c;
+      }),
+    );
   }
 
   return (
@@ -263,16 +290,8 @@ export function Client({ defaultClasses }) {
             1. Ajoutez les sigles des cours | [PHY 1620] [MAT 2050]
           </label>
           <Search
-            onSelect={(newClass) => {
-              setClasses((classes) =>
-                produce(classes, (draft) => {
-                  const c = produce(newClass, (cDraft) => {
-                    cDraft.groups = Object.fromEntries(cDraft.groups.map(g => [g, false]))
-                  })
-                  draft[newClass.short_name] = c;
-                }),
-              );
-            }}
+            onSelect={addClass
+            }
           />
         </div>
 
@@ -314,7 +333,7 @@ export function Client({ defaultClasses }) {
                       <TableCell>
                         <Link
                           target="_blank"
-                          href={classData.url}
+                          href={classUrl(classData.short_name)}
                         >
                           {classData.long_name}
                         </Link>

@@ -33,8 +33,8 @@ export function parse_class_name(class_name) {
   return [name, section];
 }
 
-function class_url(class_name) {
-  return `https://admission.umontreal.ca/cours-et-horaires/cours/${class_name}/`;
+function classUrl(shortName) {
+  return `https://admission.umontreal.ca/cours-et-horaires/cours/${shortName}/`;
 }
 
 export async function get_classes(term = '') {
@@ -45,7 +45,7 @@ async function scrape_udem(class_name) {
   const class_data = { groups: [] };
   const events = [];
 
-  class_data.url = class_url(class_name);
+  class_data.url = classUrl(class_name);
   const res = await fetch(class_data.url);
   const data = await res.text();
   const $ = load(data);
@@ -173,10 +173,9 @@ export async function generate(classes) {
           return {
             start: s,
             end: e,
-            summary: `${class_data['short_name'].toUpperCase()} | ${
-              class_data['long_name']
-            } - ${section}`,
-            url: class_url(class_name),
+            summary: `${class_data['short_name'].toUpperCase()} | ${class_data['long_name']
+              } - ${section}`,
+            url: classUrl(class_name),
             repeating: {
               freq: 'WEEKLY',
               count: event.repeatCount,
