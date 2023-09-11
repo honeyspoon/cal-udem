@@ -202,8 +202,8 @@ function Search({ onSelect }) {
   );
 }
 
-export function Client() {
-  const [classes, setClasses] = useState({});
+export function Client({ defaultClasses }) {
+  const [classes, setClasses] = useState(defaultClasses);
   const [calUrl, setCalUrl] = useState();
 
   const entries = entriesFromClassData(classes);
@@ -324,7 +324,11 @@ export function Client() {
                         <CheckboxGroup
                           orientation="horizontal"
                           color="secondary"
-                          defaultValue={[]}
+                          defaultValue={
+                            Object.entries(classData.groups)
+                              .filter(([, v]) => v)
+                              .map(([g,]) => g)
+                          }
                           onChange={(selectedGroups) => {
                             setGroups(classData.short_name, selectedGroups);
                           }}
