@@ -2,8 +2,10 @@
 
 import React from 'react';
 
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Link } from '@nextui-org/react';
+import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from '@nextui-org/react';
 import { Providers } from 'app/providers';
+
+import Link from 'next/link';
 
 export function LayoutClient({ children }) {
   return (
@@ -16,8 +18,20 @@ export function LayoutClient({ children }) {
           className="hidden sm:flex gap-4"
           justify="center"
         >
+          {/* <NavbarItem isActive> */}
+          {/*   <Link */}
+          {/*     className='text-blue-400' */}
+          {/*     href='/programmes'> */}
+          {/*     programmes */}
+          {/*   </Link> */}
+          {/* </NavbarItem> */}
           <NavbarItem isActive>
-            <Link aria-current="page">Horaire</Link>
+            <Link
+              className="text-blue-400"
+              href="/"
+            >
+              Horaire
+            </Link>
           </NavbarItem>
         </NavbarContent>
         <NavbarContent justify="end">

@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { produce } from 'immer';
-import { motion } from "framer-motion"
-import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { SEMESTER } from './const';
 
 import {
   Input,
@@ -157,9 +158,10 @@ function Search({ onSelect }) {
       {results.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1, }}
+          animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="flex justify-center items-center">
+          className="flex justify-center items-center"
+        >
           <div
             className="
               w-11/12
@@ -203,13 +205,12 @@ function Search({ onSelect }) {
   );
 }
 
-
 function classUrl(shortName) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${shortName}/`;
 }
 
 export function Client({ defaultClasses }) {
-  const router = useRouter()
+  const router = useRouter();
 
   const [classes, setClasses] = useState(defaultClasses);
   const [calUrl, setCalUrl] = useState();
@@ -225,10 +226,10 @@ export function Client({ defaultClasses }) {
   }, [entries.length]);
 
   useEffect(() => {
-    const url = new URL(window.location)
-    url.searchParams.set('classes', JSON.stringify(classes))
-    router.replace(url.toString(), '', { shallow: true })
-  }, [classes])
+    const url = new URL(window.location);
+    url.searchParams.set('classes', JSON.stringify(classes));
+    router.replace(url.toString(), '', { shallow: true });
+  }, [classes]);
 
   function setGroups(className, groups) {
     setClasses((classes) =>
@@ -236,31 +237,32 @@ export function Client({ defaultClasses }) {
         for (let group of Object.keys(draft[className].groups)) {
           draft[className].groups[group] = groups.includes(group);
         }
-      })
-      ,
+      }),
     );
   }
 
   function removeClass(className) {
-    setClasses((prev) => produce(prev, draft => {
-      delete draft[className]
-    }))
+    setClasses((prev) =>
+      produce(prev, (draft) => {
+        delete draft[className];
+      }),
+    );
   }
 
   function addClass(newClass) {
     setClasses((classes) =>
       produce(classes, (draft) => {
         const c = produce(newClass, (cDraft) => {
-          cDraft.groups = Object.fromEntries(cDraft.groups.map(g => [g, false]))
-          delete cDraft.url
-        })
+          cDraft.groups = Object.fromEntries(cDraft.groups.map((g) => [g, false]));
+          delete cDraft.url;
+        });
         draft[newClass.short_name] = c;
       }),
     );
   }
 
   return (
-    <div className="px-2">
+    <div className="">
       <main
         className="
         flex flex-1 flex-col justify-center items-center
@@ -271,7 +273,7 @@ export function Client({ defaultClasses }) {
           text-center text-gray leading-5 text-2xl
           "
         >
-          Automne 2023
+          {SEMESTER}
         </h2>
 
         <div
@@ -289,10 +291,7 @@ export function Client({ defaultClasses }) {
           >
             1. Ajoutez les sigles des cours | [PHY 1620] [MAT 2050]
           </label>
-          <Search
-            onSelect={addClass
-            }
-          />
+          <Search onSelect={addClass} />
         </div>
 
         {Object.keys(classes).length > 0 && (
@@ -324,7 +323,7 @@ export function Client({ defaultClasses }) {
                   <TableColumn>delete</TableColumn>
                 </TableHeader>
                 <TableBody items={Object.values(classes)}>
-                  {classData =>
+                  {(classData) => (
                     <TableRow key={classData.short_name}>
                       <TableCell className="font-bold">
                         {classData.short_name.toUpperCase().replace('-', ' ')}
@@ -343,11 +342,9 @@ export function Client({ defaultClasses }) {
                         <CheckboxGroup
                           orientation="horizontal"
                           color="secondary"
-                          defaultValue={
-                            Object.entries(classData.groups)
-                              .filter(([, v]) => v)
-                              .map(([g,]) => g)
-                          }
+                          defaultValue={Object.entries(classData.groups)
+                            .filter(([, v]) => v)
+                            .map(([g]) => g)}
                           onChange={(selectedGroups) => {
                             setGroups(classData.short_name, selectedGroups);
                           }}
@@ -377,7 +374,7 @@ export function Client({ defaultClasses }) {
                         </Tooltip>
                       </TableCell>
                     </TableRow>
-                  }
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -387,7 +384,7 @@ export function Client({ defaultClasses }) {
         {calUrl && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1, }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
           >
             <a
@@ -419,13 +416,12 @@ export function Client({ defaultClasses }) {
           </motion.div>
         )}
       </main>
-
       {calUrl && <CalendarWrapper calUrl={calUrl} />}
     </div>
   );
 }
 
-function CalendarWrapper({ calUrl }) {
+export function CalendarWrapper({ calUrl }) {
   const [isLoading, setIsLoading] = useState(false);
   const set = useCallback((e) => {
     setIsLoading(e);
@@ -435,7 +431,7 @@ function CalendarWrapper({ calUrl }) {
     <>
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1, }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.2 }}
         className="
           lg:w-4/5 w-full 

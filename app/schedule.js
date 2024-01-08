@@ -3,10 +3,9 @@ import { load } from 'cheerio';
 import ical from 'ical-generator';
 import AsyncLock from 'async-lock';
 import { DateTime } from 'luxon';
+import { SEMESTER } from './const';
 
 const lock = new AsyncLock();
-
-const SEMESTER = 'Automne 2023';
 
 export function get_day_number(day_str) {
   return { Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5 }[day_str];
@@ -173,8 +172,9 @@ export async function generate(classes) {
           return {
             start: s,
             end: e,
-            summary: `${class_data['short_name'].toUpperCase()} | ${class_data['long_name']
-              } - ${section}`,
+            summary: `${class_data['short_name'].toUpperCase()} | ${
+              class_data['long_name']
+            } - ${section}`,
             url: classUrl(class_name),
             repeating: {
               freq: 'WEEKLY',
