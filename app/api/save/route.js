@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
 
-export async function POST(_, { params }) {
-  return NextResponse(3);
+export async function POST() {
+  return NextResponse(200);
 }
