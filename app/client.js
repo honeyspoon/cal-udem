@@ -166,7 +166,7 @@ function Search({ onSelect }) {
             className="
               w-11/12
               px-1 py-2 mt-2
-              border-small rounded-small border-default-200 dark:border-default-100
+              border-small rounded-small border-default-200
             "
           >
             <Listbox aria-label="bb">
