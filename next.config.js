@@ -1,7 +1,13 @@
 const moduleExports = {
   reactStrictMode: true,
   images: {
-    domains: ['www.paypal.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.*.*',
+        port: '',
+      },
+    ],
   },
 };
 

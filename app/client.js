@@ -5,6 +5,8 @@ import { produce } from 'immer';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { SEMESTER } from './const';
+import { search } from 'app/actions/search';
+import { get_class_data } from 'app/actions/get_class_data';
 
 import {
   Input,
@@ -71,14 +73,14 @@ function Search({ onSelect }) {
 
   async function searchFromCourse(course) {
     const fcourse = course.toLowerCase().replace(' ', '-');
-    const res = await fetch(`/api/get_class_data/${SEMESTER}/${fcourse}`);
-    if (res.ok) return [await res.json()];
+    const res = await get_class_data(SEMESTER, fcourse);
+    if (res) return [res];
     return false;
   }
 
-  async function searchFromNothing(search) {
-    const res = await fetch(`/api/search/${SEMESTER}/${search}`);
-    if (res.ok) return await res.json();
+  async function searchFromNothing(term) {
+    const res = search(SEMESTER, term);
+    if (res) return res;
     return false;
   }
 
