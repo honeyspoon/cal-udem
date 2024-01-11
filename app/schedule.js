@@ -127,7 +127,6 @@ async function scrape_udem(class_name, class_semester) {
       }
     });
 
-    console.log(class_data);
     return [class_data, events];
   }
 }

@@ -35,6 +35,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import debounce from 'lodash.debounce';
 
 import { COURSE_REGEX } from 'app/patterns';
+import { save } from './actions/save';
 
 const initialDate = new Date();
 
@@ -221,17 +222,23 @@ export function Client({ defaultClasses }) {
   const entries = entriesFromClassData(classes);
 
   useEffect(() => {
-    if (entries.length > 0) {
-      setCalUrl(calendarURL(entries));
+    // not sure debounce is the right thing to do here
+    if (entries.length > 0 && calUrl !== null) {
+      debounce(() => {
+        setCalUrl(calendarURL(entries));
+      }, 3000)();
     } else {
       setCalUrl(null);
     }
   }, [entries.length]);
 
   useEffect(() => {
-    const url = new URL(window.location);
-    url.searchParams.set('classes', JSON.stringify(classes));
-    router.replace(url.toString(), '', { shallow: true });
+    if (classes) {
+      const url = new URL(window.location);
+      url.searchParams.set('classes', JSON.stringify(classes));
+      url.searchParams.delete('saveId');
+      router.replace(url.toString(), '', { shallow: true });
+    }
   }, [classes]);
 
   function setGroups(className, groups) {
@@ -416,6 +423,29 @@ export function Client({ defaultClasses }) {
             >
               Comment utiliser le .ics?
             </a>
+
+            <button
+              className="
+              block
+              mt-5 px-4 py-1 
+              text-sm hover:text-green-600 hover:bg-white font-semibold text-white 
+              bg-green-600 
+              rounded border border-green-200 border-transparent hover:border-green-200 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2
+              "
+              onClick={async () => {
+                const res = await save(classes);
+                const saveId = res.id;
+
+                if (saveId) {
+                  const url = new URL(window.location);
+                  url.searchParams.set('saveId', saveId);
+                  url.searchParams.delete('classes');
+                  router.replace(url.toString(), '', { shallow: true });
+                }
+              }}
+            >
+              lien de partage
+            </button>
           </motion.div>
         )}
       </main>
