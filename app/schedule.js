@@ -3,7 +3,6 @@ import { load } from 'cheerio';
 import ical from 'ical-generator';
 import AsyncLock from 'async-lock';
 import { DateTime } from 'luxon';
-import { SEMESTER } from './const';
 
 const lock = new AsyncLock();
 
@@ -36,11 +35,11 @@ function classUrl(shortName) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${shortName}/`;
 }
 
-export async function get_classes(term = '') {
-  return await prisma.course.findMany({ where: { short_name: { contains: term } } });
+export async function get_classes(term = '', semester) {
+  return await prisma.course.findMany({ where: { short_name: { contains: term }, semester } });
 }
 
-async function scrape_udem(class_name) {
+async function scrape_udem(class_name, class_semester) {
   const class_data = { groups: [] };
   const events = [];
 
@@ -54,10 +53,13 @@ async function scrape_udem(class_name) {
 
   class_data['long_name'] = long_name;
   class_data['short_name'] = class_name;
+  class_data['semester'] = class_semester;
 
   for (let semester of semesters) {
     const semester_name = $(semester).find('h3').text().trim();
-    if (semester_name != SEMESTER) {
+
+    // TODO: handle missing semester
+    if (semester_name != class_semester.replace('_', ' ')) {
       continue;
     }
 
@@ -125,43 +127,53 @@ async function scrape_udem(class_name) {
       }
     });
 
+    console.log(class_data);
     return [class_data, events];
   }
 }
 
-export async function get_schedule(short_name, withEvents = true) {
+export async function get_schedule(short_name, semester, withEvents = true) {
   const key = short_name.toLowerCase();
+
   return await lock.acquire(key, async () => {
-    const db_class_data = await prisma.course.findUnique({ where: { short_name } });
+    try {
+      const db_class_data = (await prisma.course.findMany({ where: { short_name, semester } }))[0];
 
-    if (db_class_data) {
-      if (withEvents) {
-        db_class_data.events = await prisma.event.findMany({
-          where: { courseShort_name: key },
-        });
+      if (db_class_data) {
+        if (withEvents) {
+          db_class_data.events = await prisma.event.findMany({
+            where: { courseShort_name: key, courseSemester: semester },
+          });
+        }
+
+        return db_class_data;
       }
-
-      return db_class_data;
+    } catch (error) {
+      console.log(error);
     }
 
-    const [class_data, events] = await scrape_udem(key);
+    try {
+      const [class_data, events] = await scrape_udem(key, semester);
 
-    const res = await prisma.course.create({
-      data: { ...class_data, events: { create: events } },
-      include: { events: withEvents },
-    });
+      const res = await prisma.course.create({
+        data: { ...class_data, events: { create: events } },
+        include: { events: withEvents },
+      });
 
-    return res;
+      return res;
+    } catch (error) {
+      console.log(error);
+    }
   });
 }
 
-export async function generate(classes) {
+export async function generate(classes, class_semester) {
   const calendar = ical({ name: 'my calendar' });
 
   const classes_data = await Promise.all(
     classes.map(async (c) => {
       const [class_name, section] = parse_class_name(c);
-      const class_data = await get_schedule(class_name);
+      const class_data = await get_schedule(class_name, class_semester);
 
       return class_data.events
         .filter((event) => event.group == section)

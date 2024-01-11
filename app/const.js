@@ -1,1 +1,1 @@
-export const SEMESTER = 'Hiver 2024';
+export const SEMESTER = 'Hiver_2024';

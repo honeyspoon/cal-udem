@@ -16,15 +16,19 @@ model Event {
   start            Int
   end              Int
   repeatCount      Int
-  course           Course @relation(fields: [courseShort_name], references: [short_name], onDelete: Cascade)
+  course           Course @relation(fields: [courseShort_name, courseSemester], references: [short_name, semester], onDelete: Cascade)
   group            String
   courseShort_name String
+  courseSemester   String
 }
 
 model Course {
-  short_name String   @id()
+  short_name String
+  semester   String
   long_name  String
   url        String
   groups     String[]
   events     Event[]
+
+  @@id([short_name, semester])
 }

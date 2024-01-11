@@ -55,6 +55,7 @@ function calendarURL(entries) {
 
   const params = new URLSearchParams();
   params.set('entries', entries);
+  params.set('semester', SEMESTER);
 
   return `${base_url}?${params.toString()}`;
 }
@@ -70,13 +71,13 @@ function Search({ onSelect }) {
 
   async function searchFromCourse(course) {
     const fcourse = course.toLowerCase().replace(' ', '-');
-    const res = await fetch(`/api/get_class_data/${fcourse}`);
+    const res = await fetch(`/api/get_class_data/${SEMESTER}/${fcourse}`);
     if (res.ok) return [await res.json()];
     return false;
   }
 
   async function searchFromNothing(search) {
-    const res = await fetch(`/api/search/${search}`);
+    const res = await fetch(`/api/search/${SEMESTER}/${search}`);
     if (res.ok) return await res.json();
     return false;
   }
@@ -273,7 +274,7 @@ export function Client({ defaultClasses }) {
           text-center text-gray leading-5 text-2xl
           "
         >
-          {SEMESTER}
+          {SEMESTER.replace('_', ' ')}
         </h2>
 
         <div
