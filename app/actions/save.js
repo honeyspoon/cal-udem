@@ -2,9 +2,14 @@
 
 import { prisma } from './../db';
 
-export async function save(class_data) {
-  const res = await prisma.schedule.create({
-    data: { class_data },
+import getUuid from 'uuid-by-string';
+
+export async function save(class_data, semester) {
+  const id = getUuid(JSON.stringify(class_data) + semester);
+  const res = await prisma.schedule.upsert({
+    where: { id },
+    create: { class_data, id, semester },
+    update: {},
   });
 
   return res;

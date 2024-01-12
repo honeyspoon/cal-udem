@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { produce } from 'immer';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { SEMESTER } from './const';
 import { search } from 'app/actions/search';
 import { get_class_data } from 'app/actions/get_class_data';
+import { atom, useAtom } from 'jotai';
+
+const calUrlAtom = atom();
 
 import {
   Input,
@@ -61,6 +64,10 @@ function calendarURL(entries) {
   params.set('semester', SEMESTER);
 
   return `${base_url}?${params.toString()}`;
+}
+
+function calendarURLFromId(id) {
+  return '/api/calendar/' + id;
 }
 
 function Search({ onSelect }) {
@@ -213,34 +220,7 @@ function classUrl(shortName) {
   return `https://admission.umontreal.ca/cours-et-horaires/cours/${shortName}/`;
 }
 
-export function Client({ defaultClasses }) {
-  const router = useRouter();
-
-  const [classes, setClasses] = useState(defaultClasses);
-  const [calUrl, setCalUrl] = useState();
-
-  const entries = entriesFromClassData(classes);
-
-  useEffect(() => {
-    // not sure debounce is the right thing to do here
-    if (entries.length > 0 && calUrl !== null) {
-      debounce(() => {
-        setCalUrl(calendarURL(entries));
-      }, 3000)();
-    } else {
-      setCalUrl(null);
-    }
-  }, [entries.length]);
-
-  useEffect(() => {
-    if (classes) {
-      const url = new URL(window.location);
-      url.searchParams.set('classes', JSON.stringify(classes));
-      url.searchParams.delete('saveId');
-      router.replace(url.toString(), '', { shallow: true });
-    }
-  }, [classes]);
-
+function ClassDataTable({ classes, setClasses }) {
   function setGroups(className, groups) {
     setClasses((classes) =>
       produce(classes, (draft) => {
@@ -258,6 +238,93 @@ export function Client({ defaultClasses }) {
       }),
     );
   }
+
+  return (
+    <Table
+      hideHeader
+      aria-label="classes table"
+    >
+      <TableHeader>
+        <TableColumn>short name</TableColumn>
+        <TableColumn>long name</TableColumn>
+        <TableColumn>groups</TableColumn>
+        <TableColumn>delete</TableColumn>
+      </TableHeader>
+      <TableBody items={Object.values(classes)}>
+        {(classData) => (
+          <TableRow key={classData.short_name}>
+            <TableCell className="font-bold">
+              {classData.short_name.toUpperCase().replace('-', ' ')}
+            </TableCell>
+
+            <TableCell>
+              <Link
+                target="_blank"
+                href={classUrl(classData.short_name)}
+              >
+                {classData.long_name}
+              </Link>
+            </TableCell>
+
+            <TableCell>
+              <CheckboxGroup
+                orientation="horizontal"
+                color="secondary"
+                defaultValue={Object.entries(classData.groups)
+                  .filter(([, v]) => v)
+                  .map(([g]) => g)}
+                onChange={(selectedGroups) => {
+                  setGroups(classData.short_name, selectedGroups);
+                }}
+                items={Object.keys(classData.groups)}
+              >
+                {Object.keys(classData.groups).map((groupKey) => (
+                  <Checkbox
+                    key={`${classData.short_name}-${groupKey}`}
+                    value={groupKey}
+                  >
+                    {groupKey}
+                  </Checkbox>
+                ))}
+              </CheckboxGroup>
+            </TableCell>
+
+            <TableCell>
+              <Tooltip content="retirer">
+                <span
+                  onClick={() => {
+                    removeClass(classData.short_name);
+                  }}
+                  className="text-lg text-danger cursor-pointer active:opacity-50"
+                >
+                  <AiFillDelete />
+                </span>
+              </Tooltip>
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+}
+
+export function Client({ defaultClasses }) {
+  const router = useRouter();
+
+  const [classes, setClasses] = useState(defaultClasses);
+  const [calUrl, setCalUrl] = useAtom(calUrlAtom);
+
+  const entries = entriesFromClassData(classes);
+
+  useEffect(() => {
+    if (entries.length > 0) {
+      // debounce(() => {
+      setCalUrl(calendarURL(entries));
+      // }, 3000)();
+    } else {
+      setCalUrl(null);
+    }
+  }, [entries.length]);
 
   function addClass(newClass) {
     setClasses((classes) =>
@@ -322,71 +389,10 @@ export function Client({ defaultClasses }) {
               mt-2 px-4
               "
             >
-              <Table
-                hideHeader
-                aria-label="classes table"
-              >
-                <TableHeader>
-                  <TableColumn>short name</TableColumn>
-                  <TableColumn>long name</TableColumn>
-                  <TableColumn>groups</TableColumn>
-                  <TableColumn>delete</TableColumn>
-                </TableHeader>
-                <TableBody items={Object.values(classes)}>
-                  {(classData) => (
-                    <TableRow key={classData.short_name}>
-                      <TableCell className="font-bold">
-                        {classData.short_name.toUpperCase().replace('-', ' ')}
-                      </TableCell>
-
-                      <TableCell>
-                        <Link
-                          target="_blank"
-                          href={classUrl(classData.short_name)}
-                        >
-                          {classData.long_name}
-                        </Link>
-                      </TableCell>
-
-                      <TableCell>
-                        <CheckboxGroup
-                          orientation="horizontal"
-                          color="secondary"
-                          defaultValue={Object.entries(classData.groups)
-                            .filter(([, v]) => v)
-                            .map(([g]) => g)}
-                          onChange={(selectedGroups) => {
-                            setGroups(classData.short_name, selectedGroups);
-                          }}
-                          items={Object.keys(classData.groups)}
-                        >
-                          {Object.keys(classData.groups).map((groupKey) => (
-                            <Checkbox
-                              key={`${classData.short_name}-${groupKey}`}
-                              value={groupKey}
-                            >
-                              {groupKey}
-                            </Checkbox>
-                          ))}
-                        </CheckboxGroup>
-                      </TableCell>
-
-                      <TableCell>
-                        <Tooltip content="retirer">
-                          <span
-                            onClick={() => {
-                              removeClass(classData.short_name);
-                            }}
-                            className="text-lg text-danger cursor-pointer active:opacity-50"
-                          >
-                            <AiFillDelete />
-                          </span>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <ClassDataTable
+                classes={classes}
+                setClasses={setClasses}
+              />
             </div>
           </>
         )}
@@ -433,13 +439,13 @@ export function Client({ defaultClasses }) {
               rounded border border-green-200 border-transparent hover:border-green-200 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2
               "
               onClick={async () => {
-                const res = await save(classes);
+                const res = await save(classes, SEMESTER);
                 const saveId = res.id;
 
                 if (saveId) {
                   const url = new URL(window.location);
                   url.searchParams.set('saveId', saveId);
-                  url.searchParams.delete('classes');
+                  setCalUrl(calendarURLFromId(saveId));
                   router.replace(url.toString(), '', { shallow: true });
                 }
               }}
@@ -449,78 +455,52 @@ export function Client({ defaultClasses }) {
           </motion.div>
         )}
       </main>
-      {calUrl && <CalendarWrapper calUrl={calUrl} />}
     </div>
   );
 }
 
-export function CalendarWrapper({ calUrl }) {
-  const [isLoading, setIsLoading] = useState(false);
-  const set = useCallback((e) => {
-    setIsLoading(e);
-  }, []);
+export function Calendar({ defaultCalUrl }) {
+  const [calUrl] = useAtom(calUrlAtom);
+
+  const calUrl2 = calUrl || defaultCalUrl;
+
+  if (!calUrl2) {
+    return <></>;
+  }
 
   return (
     <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.3 }}
         className="
           lg:w-4/5 w-full 
           m-auto
         "
       >
-        {isLoading && (
-          <div
-            className="
-            inset-0 absolute
-            justify-center items-center flex
-            p-2 my-10
-            bg-white/30
-            w-full
-            h-full
-            z-10
-            backdrop-blur-xl
-          "
-          >
-            <Spinner />
-          </div>
-        )}
-        <Calendar
-          calUrl={calUrl}
-          setIsLoading={set}
+        <FullCalendar
+          plugins={[timeGridPlugin, iCalendarPlugin]}
+          initialView="timeGridWeek"
+          locales={frLocale}
+          locale="fr"
+          weekends={false}
+          initialDate={initialDate}
+          slotMinTime={'08:00:00'}
+          allDaySlot={false}
+          nowIndicator
+          headerToolbar={{
+            start: 'title',
+            center: '',
+            end: 'prev,next',
+          }}
+          contentHeight={600}
+          events={{
+            url: calUrl2,
+            format: 'ics',
+          }}
         />
       </motion.div>
     </>
   );
 }
-
-const Calendar = memo(function Calendar({ calUrl, setIsLoading }) {
-  return (
-    <>
-      <FullCalendar
-        plugins={[timeGridPlugin, iCalendarPlugin]}
-        initialView="timeGridWeek"
-        locales={frLocale}
-        locale="fr"
-        weekends={false}
-        initialDate={initialDate}
-        slotMinTime={'08:00:00'}
-        allDaySlot={false}
-        nowIndicator
-        headerToolbar={{
-          start: 'title',
-          center: '',
-          end: 'prev,next',
-        }}
-        loading={setIsLoading}
-        contentHeight={600}
-        events={{
-          url: calUrl,
-          format: 'ics',
-        }}
-      />
-    </>
-  );
-});
